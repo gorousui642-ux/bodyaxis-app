@@ -258,6 +258,17 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
     <button class="btn btn-navy" onclick="goTab('scan')">
       📸 今すぐ測定する
     </button>
+    <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:12px;padding:14px;margin-top:6px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:28px;flex-shrink:0;">🏥</div>
+      <div style="flex:1;text-align:left;">
+        <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:2px;">施術者の方へ</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.6;">直立医学 施術者システム AxisPro</div>
+      </div>
+      <a href="https://gorousui642-ux.github.io/AxisPro/" target="_blank" rel="noopener"
+         style="background:var(--amber);color:var(--navy);border:none;border-radius:8px;padding:8px 13px;font-size:11px;font-weight:800;text-decoration:none;white-space:nowrap;flex-shrink:0;">
+        開く →
+      </a>
+    </div>
   </div>
 
   <!-- Results (shown after first scan) -->
@@ -586,7 +597,19 @@ body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;
       あなたの測定データが施術者に自動共有されます。<br>
       次回来院前に施術者がデータを確認できます。
     </div>
-    <button class="btn btn-out btn-sm" style="margin-top:12px;" onclick="showToast('AxisPro連携コードを施術者から受け取ってください')">施術者コードで連携する</button>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn btn-teal btn-sm" onclick="showToast('AxisPro連携コードを施術者から受け取ってください')">施術者コードで連携する</button>
+      <a href="https://gorousui642-ux.github.io/AxisPro/" target="_blank" rel="noopener"
+         style="flex:1;min-width:140px;padding:9px 16px;font-size:12px;border-radius:8px;min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;background:var(--navy);color:#fff;text-decoration:none;font-weight:800;">
+        🏥 AxisPro を開く
+      </a>
+    </div>
+    <div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;">
+      <div style="font-size:20px;">📲</div>
+      <div style="font-size:11px;color:var(--sub);line-height:1.7;">
+        施術者には <strong style="color:var(--navy);">gorousui642-ux.github.io/AxisPro</strong> を<br>お伝えください
+      </div>
+    </div>
   </div></div>
 
   <div style="text-align:center;font-size:11px;color:var(--sub);line-height:1.9;margin-top:8px;">
