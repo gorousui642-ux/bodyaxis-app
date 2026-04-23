@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0D2340">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AxisPro">
+<link rel="manifest" href="#" id="ap-manifest">
+<title>AxisPro v2.0 — 身体状態推定システム</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{min-height:100%;overflow-x:hidden;}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:#eef2f7;color:#0f172a;width:100%;}
+:root{
+  --na:#0D2340;--na2:#112d4e;--na3:#1a3a5c;
+  --am:#E8A020;--am2:#F5C048;
+  --te:#0891b2;--gr:#059669;--gr2:#d1fae5;
+  --re:#dc2626;--re2:#fee2e2;--or:#d97706;--or2:#fef3c7;
+  --pu:#7c3aed;--pu2:#ede9fe;
+  --sblue:#60a5fa;--sred:#f87171;--sgreen:#34d399;
+  --bg:#eef2f7;--ca:#fff;--su:#475569;--bo:#cbd5e1;
+  --r:14px;--sh:0 2px 12px rgba(13,35,64,.09);
+}
+#app{max-width:480px;margin:0 auto;min-height:100vh;background:#eef2f7;}
+
+/* Header */
+.hdr{background:var(--na);padding:14px 16px 0;position:sticky;top:0;z-index:100;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.hdr-logo{display:flex;align-items:center;gap:10px;}
+.hdr-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--am),#f59e0b);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-name{color:#fff;font-size:16px;font-weight:800;letter-spacing:.04em;}
+.logo-sub{color:rgba(255,255,255,.45);font-size:10px;}
+.clinic{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 11px;color:rgba(255,255,255,.85);font-size:11px;}
+
+/* Tabs */
+.tabs{display:flex;border-top:1px solid rgba(255,255,255,.08);}
+.tab{flex:1;padding:10px 2px 9px;font-size:10px;color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:46px;}
+.tab-ic{font-size:16px;line-height:1;}
+.tab.on{color:var(--am);border-bottom:2px solid var(--am);}
+
+/* Panels */
+.panel{display:none;padding:14px;}
+.panel.on{display:block;}
+
+/* Screens */
+.screen{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.screen.on{display:block;}
+.scr-hdr{background:var(--na);padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;}
+.back{background:none;border:none;color:rgba(255,255,255,.8);font-size:26px;cursor:pointer;padding:0 4px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;}
+.scr-title{color:#fff;font-size:16px;font-weight:800;}
+.scr-sub{color:rgba(255,255,255,.45);font-size:11px;margin-top:1px;}
+.scr-body{padding:14px;padding-bottom:40px;}
+
+/* Cards */
+.card{background:var(--ca);border-radius:var(--r);border:1px solid var(--bo);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden;}
+.card-hd{padding:12px 14px;border-bottom:1px solid var(--bo);display:flex;align-items:center;justify-content:space-between;}
+.ch-t{font-size:13px;font-weight:700;color:var(--na);}
+.ch-s{font-size:11px;color:var(--su);}
+.card-body{padding:14px;}
+
+/* Section label */
+.sec{font-size:11px;font-weight:700;color:var(--su);letter-spacing:.08em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bo);}
+
+/* Form */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--su);margin-bottom:6px;}
+.field input,.field select,.field textarea{width:100%;font-size:16px;padding:12px 13px;border-radius:10px;border:1.5px solid var(--bo);outline:none;font-family:inherit;background:var(--ca);color:#0f172a;-webkit-appearance:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--te);}
+.field textarea{resize:none;height:72px;line-height:1.6;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* Buttons */
+.btn{width:100%;padding:15px;border-radius:12px;font-size:14px;font-weight:800;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;min-height:50px;-webkit-user-select:none;transition:opacity .15s;}
+.btn:active{opacity:.82;}
+.btn-na{background:var(--na);color:#fff;}
+.btn-gr{background:var(--gr);color:#fff;}
+.btn-am{background:var(--am);color:var(--na);}
+.btn-te{background:var(--te);color:#fff;}
+.btn-out{background:transparent;color:var(--na);border:1.5px solid var(--na);}
+.btn-re-out{background:transparent;color:var(--re);border:1.5px solid var(--re);}
+.btn-sm{width:auto;padding:9px 16px;font-size:12px;border-radius:8px;min-height:40px;margin-bottom:0;}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.stat{background:var(--ca);border-radius:12px;padding:14px 6px;text-align:center;border:1px solid var(--bo);box-shadow:var(--sh);}
+.stat-n{font-size:26px;font-weight:800;}
+.stat-l{font-size:11px;color:var(--su);margin-top:2px;}
+
+/* ── 状態推定ヒーロー ── */
+.state-est{background:linear-gradient(135deg,var(--na),var(--na3));border-radius:var(--r);padding:18px;margin-bottom:12px;box-shadow:var(--sh);}
+.se-head{color:rgba(255,255,255,.5);font-size:11px;letter-spacing:.06em;margin-bottom:10px;}
+.se-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.se-item{background:rgba(255,255,255,.08);border-radius:10px;padding:12px 10px;}
+.se-label{font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px;}
+.se-val{font-size:20px;font-weight:800;line-height:1;}
+.se-sub{font-size:11px;margin-top:2px;}
+.se-S .se-val{color:var(--sblue);}
+.se-P .se-val{color:var(--sred);}
+.se-A .se-val{color:var(--sgreen);}
+.se-R .se-val{color:var(--am2);}
+.conf-row{display:flex;align-items:center;gap:10px;}
+.conf-bg{flex:1;background:rgba(255,255,255,.12);border-radius:4px;height:6px;}
+.conf-fill{height:6px;border-radius:4px;background:var(--am2);transition:width .6s;}
+.conf-label{font-size:11px;color:rgba(255,255,255,.5);min-width:40px;}
+.conf-tag{font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;}
+.conf-hi{background:rgba(52,211,153,.2);color:#34d399;}
+.conf-mid{background:rgba(251,191,36,.2);color:#fbbf24;}
+.conf-lo{background:rgba(248,113,113,.2);color:#f87171;}
+
+/* パターン判定 */
+.pattern-box{background:var(--ca);border-radius:var(--r);border:1px solid var(--bo);box-shadow:var(--sh);margin-bottom:12px;padding:14px;}
+.pat-title{font-size:12px;font-weight:700;color:var(--su);margin-bottom:8px;letter-spacing:.05em;}
+.pat-text{font-size:13px;line-height:1.9;color:#0f172a;}
+.pat-badges{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;}
+.pat-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;}
+.b-adapt{background:var(--gr2);color:var(--gr);}
+.b-struct{background:#dbeafe;color:#2563eb;}
+.b-risk{background:var(--or2);color:var(--or);}
+.b-contra{background:var(--re2);color:var(--re);}
+.b-ok{background:var(--gr2);color:var(--gr);}
+
+/* 3スコア */
+.trio-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.trio-cell{background:var(--ca);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid var(--bo);box-shadow:var(--sh);}
+.tc-l{font-size:10px;margin-bottom:5px;}
+.tc-bar-bg{background:var(--bg);border-radius:4px;height:5px;margin-bottom:5px;overflow:hidden;}
+.tc-bar{height:5px;border-radius:4px;transition:width .5s;}
+.tc-v{font-size:18px;font-weight:800;}
+.tc-s{font-size:10px;color:var(--su);margin-top:2px;}
+
+/* 変化行 */
+.delta-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bo);}
+.delta-row:last-child{border-bottom:none;}
+.dr-l{font-size:12px;color:var(--su);flex:1;}
+.dr-v{font-size:13px;font-weight:800;}
+.dr-n{font-size:10px;color:var(--su);}
+
+/* Patient hero */
+.pat-hero{background:linear-gradient(135deg,var(--na),var(--na3));border-radius:var(--r);padding:18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;box-shadow:var(--sh);}
+.pa-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,.2);flex-shrink:0;}
+.pa-av.f{background:rgba(236,72,153,.25);}
+.pa-av.m{background:rgba(59,130,246,.25);}
+.pa-av.o{background:rgba(16,185,129,.2);}
+.pa-name{font-size:17px;font-weight:800;color:#fff;}
+.pa-meta{font-size:12px;color:rgba(255,255,255,.55);margin-top:2px;}
+.pa-right{margin-left:auto;text-align:right;}
+.pa-phi-v{font-size:22px;font-weight:800;color:var(--am2);}
+.pa-phi-l{font-size:10px;color:rgba(255,255,255,.4);}
+
+/* Patient list */
+.pat-item{padding:14px;border-bottom:1px solid var(--bo);display:flex;align-items:center;gap:12px;cursor:pointer;}
+.pat-item:last-child{border-bottom:none;}
+.pat-item:active{background:#f8fafc;}
+.pi-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.pi-av.f{background:#fce7f3;} .pi-av.m{background:#dbeafe;} .pi-av.o{background:#d1fae5;}
+.pi-name{font-size:14px;font-weight:700;}
+.pi-meta{font-size:11px;color:var(--su);margin-top:2px;}
+.pi-right{margin-left:auto;text-align:right;flex-shrink:0;}
+.pi-s{font-size:11px;margin-top:3px;}
+.pi-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;display:inline-block;margin-top:3px;}
+
+/* Session history */
+.sess-item{padding:12px 14px;border-bottom:1px solid var(--bo);display:flex;align-items:center;gap:8px;}
+.sess-item:last-child{border-bottom:none;}
+.si-date{font-size:12px;color:var(--su);min-width:56px;}
+.si-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.si-bar-row{display:flex;gap:4px;align-items:center;}
+.si-fill{height:4px;border-radius:2px;}
+.si-phi{font-size:12px;font-weight:800;min-width:34px;text-align:right;}
+.si-tag{font-size:10px;font-weight:700;padding:2px 5px;border-radius:6px;margin-left:2px;}
+
+/* Info rows */
+.irow{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bo);align-items:flex-start;}
+.irow:last-child{border-bottom:none;}
+.ir-l{font-size:12px;color:var(--su);min-width:90px;flex-shrink:0;padding-top:1px;}
+.ir-v{font-size:13px;flex:1;line-height:1.6;}
+
+/* Photo */
+.photo-area{position:relative;background:#080808;min-height:280px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.photo-area canvas{max-width:100%;max-height:360px;display:block;}
+.no-ph{text-align:center;color:rgba(255,255,255,.35);padding:32px 16px;}
+.no-ph .ic{font-size:44px;margin-bottom:10px;}
+.no-ph p{font-size:12px;line-height:1.9;}
+.proc{position:absolute;inset:0;background:rgba(13,35,64,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;z-index:5;}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.15);border-top-color:var(--am);animation:sp .8s linear infinite;margin-bottom:12px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.proc h4{font-size:14px;font-weight:800;}
+.proc p{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;}
+.ph-btns{display:flex;}
+.ph-btn{flex:1;padding:14px 8px;font-size:13px;font-weight:700;border:none;cursor:pointer;min-height:50px;display:flex;align-items:center;justify-content:center;gap:5px;}
+.ph-take{background:var(--na);color:#fff;}
+.ph-pick{background:var(--na3);color:#fff;}
+.ph-retake{background:#374151;color:#fff;}
+
+/* Pose result */
+.pose-strip{padding:12px 14px;border-top:1px solid var(--bo);}
+.pose-ttl{font-size:11px;font-weight:700;color:var(--su);margin-bottom:8px;letter-spacing:.05em;}
+.pose-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pose-cell{background:var(--bg);border-radius:8px;padding:10px 8px;}
+.pc-l{font-size:10px;color:var(--su);}
+.pc-v{font-size:17px;font-weight:800;margin-top:3px;}
+
+/* Sliders */
+.sl-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.sl-lbl{font-size:12px;color:var(--su);font-weight:600;min-width:90px;}
+input[type=range].sl{flex:1;height:6px;border-radius:3px;-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;background:var(--bo);}
+input[type=range].sl::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--na);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);}
+.sl-val{font-size:13px;font-weight:800;color:var(--na);min-width:44px;text-align:right;}
+.sl-unit{font-size:11px;color:var(--su);min-width:20px;}
+
+/* 症状入力チップ */
+.symp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.symp-chip{border:1.5px solid var(--bo);border-radius:10px;padding:9px 8px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--su);background:var(--ca);}
+.symp-chip.on{border-color:var(--te);background:#cffafe;color:var(--te);}
+
+/* RT box */
+.rt-box{background:var(--na);border-radius:12px;padding:14px;margin-bottom:12px;}
+.rt-lbl{color:rgba(255,255,255,.45);font-size:11px;letter-spacing:.06em;margin-bottom:8px;}
+.rt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ri-l{font-size:10px;color:rgba(255,255,255,.45);}
+.ri-v{font-size:20px;font-weight:800;color:#fff;line-height:1.2;margin-top:2px;}
+.ri-am{color:var(--am2)!important;}
+.ri-sblue{color:var(--sblue)!important;}
+.ri-sred{color:var(--sred)!important;}
+.ri-sgreen{color:var(--sgreen)!important;}
+
+/* Theorem */
+.theorem{border-radius:12px;padding:14px;margin-bottom:12px;}
+.theorem.ok    {background:var(--gr2);border:1px solid #6ee7b7;}
+.theorem.warn  {background:var(--or2);border:1px solid #fcd34d;}
+.theorem.danger{background:var(--re2);border:1px solid #fca5a5;}
+.theorem.adapt {background:var(--pu2);border:1px solid #c4b5fd;}
+.th-title{font-size:13px;font-weight:800;margin-bottom:8px;color:#0f172a;}
+.th-cond{font-size:12px;display:flex;gap:5px;margin-bottom:4px;line-height:1.6;align-items:flex-start;}
+.c-ok{color:var(--gr);font-weight:700;}
+.c-ng{color:var(--re);font-weight:700;}
+.c-am{color:var(--or);font-weight:700;}
+
+/* Thermography */
+.thermo-canvas{width:100%;height:150px;display:block;border-radius:10px;}
+.thermo-legend{display:flex;justify-content:space-between;font-size:10px;color:var(--su);margin-top:4px;}
+.thermo-grad{height:5px;border-radius:3px;margin:4px 0 10px;background:linear-gradient(to right,#3b82f6,#10b981,#f59e0b,#ef4444);}
+.thermo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.th-cell{background:var(--bg);border-radius:8px;padding:9px 8px;}
+.tc-ll{font-size:10px;color:var(--su);}
+.tc-vv{font-size:16px;font-weight:800;margin-top:2px;}
+
+/* HRV */
+.hrv-canvas{width:100%;height:70px;display:block;}
+.hrv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.hrv-cell{background:var(--bg);border-radius:8px;padding:9px 8px;text-align:center;}
+.hc-l{font-size:10px;color:var(--su);}
+.hc-v{font-size:18px;font-weight:800;margin-top:2px;}
+
+/* Alert */
+.al{border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;}
+.al.info{background:#e0f2fe;border:1px solid #7dd3fc;}
+.al.ok  {background:var(--gr2);border:1px solid #6ee7b7;}
+.al.warn{background:var(--or2);border:1px solid #fcd34d;}
+.al.adapt{background:var(--pu2);border:1px solid #c4b5fd;}
+.al-ic{font-size:16px;flex-shrink:0;}
+.al-t{font-size:13px;font-weight:700;}
+.al-s{font-size:12px;color:var(--su);margin-top:2px;line-height:1.7;}
+
+/* Report */
+.rep-box{background:var(--na);border-radius:12px;padding:16px;margin-bottom:12px;}
+.rep-box h4{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.06em;margin-bottom:10px;}
+.rep-txt{font-size:13px;line-height:2.0;color:#fff;}
+
+/* Plan */
+.plan-hero{background:linear-gradient(135deg,var(--na),#1d4ed8);border-radius:var(--r);padding:20px;margin-bottom:14px;color:#fff;}
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.plan-card{background:var(--ca);border-radius:var(--r);padding:16px;border:1px solid var(--bo);}
+.plan-card.feat{border:2px solid var(--am);}
+.pc-name{font-size:14px;font-weight:800;color:var(--na);margin-bottom:2px;}
+.pc-price{font-size:21px;font-weight:800;color:var(--na);}
+.pc-per{font-size:11px;color:var(--su);font-weight:400;}
+.pc-note{font-size:10px;color:var(--su);margin-bottom:10px;}
+.pc-feat{font-size:11px;margin-bottom:4px;display:flex;gap:4px;color:#0f172a;}
+.pc-feat.off{color:var(--bo);}
+.plan-btn{width:100%;margin-top:12px;padding:11px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;min-height:44px;}
+
+/* Indicator bars */
+.ind-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.ind-lbl{font-size:12px;min-width:100px;display:flex;align-items:center;gap:4px;}
+.ind-bg{flex:1;background:var(--bg);border-radius:4px;height:7px;overflow:hidden;}
+.ind-fill{height:7px;border-radius:4px;transition:width .5s;}
+.ind-val{font-size:12px;font-weight:800;min-width:40px;text-align:right;}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--na);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap;max-width:90vw;}
+
+.bpad{height:32px;}
+#cam-inp,#file-inp{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">
+      <div class="hdr-mark">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+          <ellipse cx="11" cy="3.5" rx="3.2" ry="3.2" fill="white"/>
+          <rect x="10" y="7" width="2.2" height="9" rx="1" fill="white"/>
+          <path d="M5 10 Q11 13 17 10" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M6 19 Q11 17 16 19" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">AxisPro</div>
+        <div class="logo-sub">身体状態推定システム | 施術者用</div>
+      </div>
+    </div>
+    <div class="clinic">直立医学研究所</div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="t-dash" onclick="goTab('dash')"><span class="tab-ic">📊</span>ダッシュ</button>
+    <button class="tab"    id="t-pats" onclick="goTab('pats')"><span class="tab-ic">👥</span>患者</button>
+    <button class="tab"    id="t-rep"  onclick="goTab('rep')" ><span class="tab-ic">📄</span>レポート</button>
+    <button class="tab"    id="t-plan" onclick="goTab('plan')"><span class="tab-ic">💳</span>プラン</button>
+  </div>
+</div>
+
+<input type="file" id="file-inp" accept="image/*" onchange="onFile(event)">
+<input type="file" id="cam-inp"  accept="image/*" capture="environment" onchange="onFile(event)">
+
+<!-- DASHBOARD -->
+<div class="panel on" id="panel-dash">
+  <div class="sec">本日のサマリー</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="d-total" style="color:var(--na)">0</div><div class="stat-l">登録患者</div></div>
+    <div class="stat"><div class="stat-n" id="d-adapt" style="color:var(--pu)">0</div><div class="stat-l">適応状態</div></div>
+    <div class="stat"><div class="stat-n" id="d-crit"  style="color:var(--re)">0</div><div class="stat-l">禁忌定理</div></div>
+  </div>
+  <div class="al info" id="dash-no-pat">
+    <div class="al-ic">ℹ️</div>
+    <div><div class="al-t">患者を選択して診察を開始</div>
+      <div class="al-s">「患者」タブから患者を選択するか、新規患者を登録してください。</div></div>
+  </div>
+  <div id="dash-pat" style="display:none;">
+    <div class="sec">診察中の患者</div>
+    <div class="pat-hero">
+      <div class="pa-av" id="dash-av">🧑</div>
+      <div style="flex:1;min-width:0;">
+        <div class="pa-name" id="dash-name">-</div>
+        <div class="pa-meta" id="dash-meta">-</div>
+      </div>
+      <div class="pa-right">
+        <div class="pa-phi-v" id="dash-phi">-</div>
+        <div class="pa-phi-l">構造スコア S</div>
+      </div>
+    </div>
+
+    <!-- 状態推定 -->
+    <div class="state-est">
+      <div class="se-head">BODY STATE ESTIMATION — 身体状態推定</div>
+      <div class="se-grid">
+        <div class="se-item se-S">
+          <div class="se-label">構造スコア（S）</div>
+          <div class="se-val" id="dash-S">—</div>
+          <div class="se-sub" id="dash-S-l" style="color:var(--sblue);">—</div>
+        </div>
+        <div class="se-item se-P">
+          <div class="se-label">症状スコア（P）</div>
+          <div class="se-val" id="dash-P">—</div>
+          <div class="se-sub" id="dash-P-l" style="color:var(--sred);">—</div>
+        </div>
+        <div class="se-item se-A">
+          <div class="se-label">適応スコア（A）</div>
+          <div class="se-val" id="dash-A">—</div>
+          <div class="se-sub" id="dash-A-l" style="color:var(--sgreen);">—</div>
+        </div>
+        <div class="se-item se-R">
+          <div class="se-label">将来リスク</div>
+          <div class="se-val" id="dash-risk">—</div>
+          <div class="se-sub" id="dash-risk-l" style="color:var(--am2);">—</div>
+        </div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-label">信頼度</div>
+        <div class="conf-bg"><div class="conf-fill" id="dash-conf-bar" style="width:0%"></div></div>
+        <span class="conf-tag" id="dash-conf-tag">低</span>
+      </div>
+    </div>
+
+    <!-- パターン判定 -->
+    <div class="pattern-box">
+      <div class="pat-title">🧠 AIパターン判定 — 不一致の解釈</div>
+      <div class="pat-text" id="dash-pattern">—</div>
+      <div class="pat-badges" id="dash-pat-badges"></div>
+    </div>
+
+    <!-- 定理1 -->
+    <div class="theorem ok" id="dash-thm">
+      <div class="th-title" id="dash-th-t">判定中…</div>
+      <div id="dash-th-c"></div>
+    </div>
+
+    <button class="btn btn-te" onclick="openMeasure()">📸 この患者の計測を開始</button>
+    <button class="btn btn-out" onclick="goTab('pats')">👥 患者一覧へ</button>
+    <a href="https://gorousui642-ux.github.io/bodyaxis-app/" target="_blank" rel="noopener"
+       style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0D2340,#1a3a5c);border-radius:12px;padding:14px;text-decoration:none;margin-bottom:10px;">
+      <div style="font-size:26px;flex-shrink:0;">📱</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:1px;">BodyAxis — 患者用アプリ</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);">患者にシェアして連携できます</div>
+      </div>
+      <div style="color:var(--am);font-size:18px;font-weight:800;">→</div>
+    </a>
+  </div>
+  <div class="bpad"></div>
+</div>
+
+<!-- PATIENTS -->
+<div class="panel" id="panel-pats">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;">
+    <div class="sec" style="margin:0;flex:1;">患者一覧</div>
+    <button class="btn btn-am btn-sm" onclick="openScreen('scr-reg')">＋ 新規登録</button>
+  </div>
+  <div class="card" style="padding:0;">
+    <div style="padding:10px 12px;border-bottom:1px solid var(--bo);">
+      <input type="text" id="search-inp" placeholder="🔍 患者名で検索"
+        style="width:100%;font-size:16px;padding:9px 12px;border-radius:8px;border:1px solid var(--bo);outline:none;background:var(--ca);color:#0f172a;-webkit-appearance:none;"
+        oninput="renderList()">
+    </div>
+    <div id="pat-list"></div>
+    <div id="no-pat" style="display:none;padding:24px;text-align:center;font-size:13px;color:var(--su);">
+      患者が登録されていません。「＋ 新規登録」から追加してください。
+    </div>
+  </div>
+  <div class="bpad"></div>
+</div>
+
+<!-- REPORT -->
+<div class="panel" id="panel-rep">
+  <div class="al info" id="rep-guide">
+    <div class="al-ic">ℹ️</div>
+    <div><div class="al-t">計測後に自動生成されます</div>
+      <div class="al-s">患者 → 選択 → 計測実施 の順に進めてください。</div></div>
+  </div>
+  <div id="rep-content" style="display:none;">
+    <div class="sec">施術者向け Report B — 状態推定モデル</div>
+    <div class="rep-box"><h4>計測サマリー（直立医学 τ–T–Φ フレームワーク）</h4><div class="rep-txt" id="rep-b">-</div></div>
+    <div class="sec">患者向け Report A</div>
+    <div class="card"><div class="card-body"><div style="font-size:13px;line-height:2.0;" id="rep-a">-</div></div></div>
+    <button class="btn btn-na" onclick="toast('PDFを生成します（正式アプリ機能）')">📄 PDF レポートを生成</button>
+    <a href="https://gorousui642-ux.github.io/bodyaxis-app/" target="_blank" rel="noopener"
+       class="btn btn-out" style="text-decoration:none;margin-bottom:10px;">
+      📤 BodyAxis（患者アプリ）を開く
+    </a>
+  </div>
+  <div class="bpad"></div>
+</div>
+
+<!-- PLAN -->
+<div class="panel" id="panel-plan">
+  <div class="plan-hero">
+    <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.08em;margin-bottom:3px;">施術者向けプラン</div>
+    <div style="font-size:20px;font-weight:800;margin-bottom:2px;">AxisPro クリニック版</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.65);">直立医学研究所 公認 | 身体状態推定システム</div>
+  </div>
+  <div class="sec">プラン比較</div>
+  <div class="plan-grid">
+    <div class="plan-card">
+      <div class="pc-name">スターター</div>
+      <div class="pc-price">¥4,800<span class="pc-per">/月</span></div>
+      <div class="pc-note">年払い ¥48,000（2ヶ月無料）</div>
+      <div class="pc-feat"><span>✓</span>姿勢写真自動解析</div>
+      <div class="pc-feat"><span>✓</span>S/P/A 3スコア推定</div>
+      <div class="pc-feat"><span>✓</span>患者50名管理</div>
+      <div class="pc-feat"><span>✓</span>定理1 禁忌判定</div>
+      <div class="pc-feat"><span>✓</span>パターン判定</div>
+      <div class="pc-feat off"><span>—</span>サーモ連携</div>
+      <button class="plan-btn" style="border:1.5px solid var(--na);color:var(--na);background:transparent;">現在のプラン</button>
+    </div>
+    <div class="plan-card feat">
+      <div style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:#e2e8f0;color:#64748b;margin-bottom:8px;display:inline-block;">構築中</div>
+      <div class="pc-name">プロフェッショナル</div>
+      <div class="pc-price" style="color:#94a3b8;">近日公開</div>
+      <div class="pc-note">準備中</div>
+      <div class="pc-feat"><span>✓</span>全機能＋</div>
+      <div class="pc-feat"><span>✓</span>無制限患者管理</div>
+      <div class="pc-feat"><span>✓</span>サーモグラフィ連携</div>
+      <div class="pc-feat"><span>✓</span>HRV連携</div>
+      <div class="pc-feat"><span>✓</span>カルマンフィルタ</div>
+      <div class="pc-feat"><span>✓</span>PDF自動生成</div>
+      <button class="plan-btn" style="background:#94a3b8;color:#fff;cursor:not-allowed;" disabled>構築中</button>
+    </div>
+  </div>
+  <div class="sec">BodyAxis 患者連携</div>
+  <div class="card"><div class="card-body">
+    <div style="font-size:12px;color:var(--su);line-height:1.9;margin-bottom:10px;">患者が BodyAxis をインストールし、施術者コードを入力するとデータが自動共有されます。</div>
+    <div style="background:var(--bg);border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--su);">施術者コード</div>
+      <div style="font-size:20px;font-weight:800;color:var(--na);letter-spacing:.1em;">USUI-2026</div>
+      <button class="btn btn-sm btn-out" style="margin-left:auto;" onclick="toast('コードをコピーしました')">コピー</button>
+    </div>
+    <a href="https://gorousui642-ux.github.io/bodyaxis-app/" target="_blank" rel="noopener"
+       style="display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0D2340,#1a3a5c);border-radius:10px;padding:14px;text-decoration:none;">
+      <div style="font-size:28px;flex-shrink:0;">📱</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:800;color:#fff;">患者用アプリ BodyAxis</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.5);">gorousui642-ux.github.io/bodyaxis-app</div>
+      </div>
+      <div style="background:var(--am);color:var(--na);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:800;">開く →</div>
+    </a>
+  </div></div>
+  <div style="text-align:center;font-size:11px;color:var(--su);line-height:1.9;margin-top:8px;">AxisPro v2.0 | 直立医学研究所<br>usui@agozure.com | ※医療機器ではありません</div>
+  <div class="bpad"></div>
+</div>
+
+<!-- SCREEN: New Patient -->
+<div class="screen" id="scr-reg">
+  <div class="scr-hdr">
+    <button class="back" onclick="closeScreen('scr-reg')">&#8249;</button>
+    <div><div class="scr-title">新規患者登録</div><div class="scr-sub">患者情報を入力してください</div></div>
+  </div>
+  <div class="scr-body">
+    <div class="sec">基本情報</div>
+    <div class="field"><label>氏名 *</label><input type="text" id="f-name" placeholder="例：田中 花子"></div>
+    <div class="frow">
+      <div class="field"><label>年齢 *</label><input type="number" id="f-age" placeholder="58" min="1" max="120"></div>
+      <div class="field"><label>性別 *</label>
+        <select id="f-gender"><option value="">選択</option><option value="f">女性</option><option value="m">男性</option><option value="o">その他</option></select>
+      </div>
+    </div>
+    <div class="field"><label>連絡先（任意）</label><input type="tel" id="f-tel" placeholder="090-0000-0000"></div>
+    <div class="sec">主訴・既往歴</div>
+    <div class="field"><label>主訴（症状）</label><textarea id="f-comp" placeholder="例：肩こり・腰痛・慢性疲労"></textarea></div>
+    <div class="field"><label>既往歴・特記事項</label><textarea id="f-hist" placeholder="例：高血圧（内服中）"></textarea></div>
+    <div class="sec">歯科情報</div>
+    <div class="field"><label>残存歯数</label>
+      <select id="f-teeth"><option value="28">28本（全部）</option><option value="24">24〜27本</option><option value="20">20〜23本（キーパー喪失あり）</option><option value="10">10〜19本</option><option value="9">9本以下（高リスク）</option></select>
+    </div>
+    <div class="field"><label>左後臼歯（キーパー）状態</label>
+      <select id="f-keeper"><option value="intact">正常咬合</option><option value="wear">摩耗あり</option><option value="partial">部分欠損</option><option value="loss">欠損（キーパーロス）</option></select>
+    </div>
+    <button class="btn btn-na" onclick="doRegister()">✅ この患者を登録する</button>
+    <button class="btn btn-out" onclick="closeScreen('scr-reg')">キャンセル</button>
+    <div class="bpad"></div>
+  </div>
+</div>
+
+<!-- SCREEN: Patient Detail -->
+<div class="screen" id="scr-detail">
+  <div class="scr-hdr">
+    <button class="back" onclick="closeScreen('scr-detail')">&#8249;</button>
+    <div><div class="scr-title" id="det-title">患者詳細</div><div class="scr-sub" id="det-sub">-</div></div>
+  </div>
+  <div class="scr-body">
+    <div class="pat-hero">
+      <div class="pa-av" id="det-av">🧑</div>
+      <div style="flex:1;min-width:0;"><div class="pa-name" id="det-name">-</div><div class="pa-meta" id="det-meta">-</div></div>
+      <div class="pa-right"><div class="pa-phi-v" id="det-phi">-</div><div class="pa-phi-l">構造 S</div></div>
+    </div>
+
+    <!-- 3スコア -->
+    <div class="trio-grid" id="det-trio" style="display:none;">
+      <div class="trio-cell">
+        <div class="tc-l" style="color:var(--sblue);">構造（S）</div>
+        <div class="tc-bar-bg"><div class="tc-bar" id="det-barS" style="background:var(--sblue);width:0%"></div></div>
+        <div class="tc-v" id="det-S" style="color:var(--sblue);">—</div>
+        <div class="tc-s" id="det-S-l">—</div>
+      </div>
+      <div class="trio-cell">
+        <div class="tc-l" style="color:var(--sred);">症状（P）</div>
+        <div class="tc-bar-bg"><div class="tc-bar" id="det-barP" style="background:var(--sred);width:0%"></div></div>
+        <div class="tc-v" id="det-P" style="color:var(--sred);">—</div>
+        <div class="tc-s" id="det-P-l">—</div>
+      </div>
+      <div class="trio-cell">
+        <div class="tc-l" style="color:var(--sgreen);">適応（A）</div>
+        <div class="tc-bar-bg"><div class="tc-bar" id="det-barA" style="background:var(--sgreen);width:0%"></div></div>
+        <div class="tc-v" id="det-A" style="color:var(--sgreen);">—</div>
+        <div class="tc-s" id="det-A-l">—</div>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-body" style="padding:10px 14px;"><div id="det-info"></div></div></div>
+    <button class="btn btn-te" onclick="openMeasure()">📸 今日の計測を開始する</button>
+    <div class="sec">測定セッション履歴</div>
+    <div class="card" style="padding:0;" id="det-sess">
+      <div style="padding:20px;text-align:center;color:var(--su);font-size:13px;">まだ計測データがありません</div>
+    </div>
+    <div class="sec" style="margin-top:20px;">操作</div>
+    <button class="btn btn-re-out" onclick="doDelete()">🗑 この患者を削除する</button>
+    <div class="bpad"></div>
+  </div>
+</div>
+
+<!-- SCREEN: Measurement -->
+<div class="screen" id="scr-meas">
+  <div class="scr-hdr">
+    <button class="back" onclick="closeScreen('scr-meas')">&#8249;</button>
+    <div><div class="scr-title">計測 — <span id="meas-name">-</span></div><div class="scr-sub" id="meas-meta">-</div></div>
+  </div>
+  <div class="scr-body">
+
+    <div class="sec">STEP 1 — 姿勢写真（PTI 自動解析 → 構造スコア S）</div>
+    <div class="card" style="padding:0;">
+      <div style="background:#f8fafc;padding:9px 14px;border-bottom:1px solid var(--bo);">
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button id="ap-mode-front" onclick="setAPScanMode('front')" style="flex:1;padding:7px 4px;font-size:12px;font-weight:700;border-radius:8px;border:2px solid #0D2340;background:#0D2340;color:#fff;cursor:pointer;">🧍 正面</button>
+          <button id="ap-mode-side"  onclick="setAPScanMode('side')"  style="flex:1;padding:7px 4px;font-size:12px;font-weight:700;border-radius:8px;border:2px solid #d1d5db;background:#fff;color:#6b7280;cursor:pointer;">🚶 側面</button>
+        </div>
+        <div id="ap-hint-front" style="font-size:11px;color:var(--su);display:flex;gap:12px;flex-wrap:wrap;">
+          <span>✓ 頭頂〜足先が入る</span><span>✓ 踵を揃えて直立（正面）</span><span>✓ 壁背景・2m以上</span>
+        </div>
+        <div id="ap-hint-side" style="font-size:11px;color:var(--su);display:none;gap:12px;flex-wrap:wrap;">
+          <span>✓ 真横から全身が入る</span><span>✓ 自然直立・腕は体側</span><span>✓ 壁を横に2m離れる</span>
+        </div>
+      </div>
+      <div class="photo-area" id="photo-area">
+        <div class="no-ph" id="no-ph"><div class="ic">🧍</div><p id="ap-no-ph-txt">正面から全身を撮影<br>またはライブラリから選択</p></div>
+        <canvas id="pose-canvas" style="display:none;max-width:100%;"></canvas>
+        <div class="proc" id="proc-ov" style="display:none;"><div class="spin"></div><h4>ランドマーク検出中…</h4><p>33点を自動計測しています</p></div>
+      </div>
+      <div class="ph-btns" id="ph-btns">
+        <button class="ph-btn ph-take" onclick="document.getElementById('cam-inp').click()">📷 撮影</button>
+        <button class="ph-btn ph-pick" onclick="document.getElementById('file-inp').click()">🖼 ライブラリ</button>
+      </div>
+      <div class="ph-btns" id="ph-retake" style="display:none;">
+        <button class="ph-btn ph-retake" onclick="resetPhoto()">🔄 撮り直す</button>
+      </div>
+      <div class="pose-strip" id="pose-strip" style="display:none;">
+        <div class="pose-ttl">自動計測結果 — ランドマーク解析</div>
+        <div id="ap-result-front">
+          <div class="pose-grid">
+            <div class="pose-cell"><div class="pc-l">肩ライン傾斜</div><div class="pc-v" id="pr-sho" style="color:var(--te);">-</div></div>
+            <div class="pose-cell"><div class="pc-l">骨盤ライン傾斜</div><div class="pc-v" id="pr-pel" style="color:var(--or);">-</div></div>
+            <div class="pose-cell"><div class="pc-l">PTI（逆相回旋）</div><div class="pc-v" id="pr-pti" style="color:var(--re);">-</div></div>
+          </div>
+        </div>
+        <div id="ap-result-side" style="display:none;">
+          <div class="pose-grid">
+            <div class="pose-cell"><div class="pc-l">頭部前突</div><div class="pc-v" id="ap-pr-hf" style="color:var(--te);">-</div></div>
+            <div class="pose-cell"><div class="pc-l">体幹傾斜</div><div class="pc-v" id="ap-pr-tr" style="color:var(--or);">-</div></div>
+            <div class="pose-cell"><div class="pc-l">重心偏位</div><div class="pc-v" id="ap-pr-cg" style="color:var(--re);">-</div></div>
+          </div>
+          <div style="font-size:11px;color:var(--su);padding:6px 2px 0;">矢状面アライメント（θとしてτ̂に統合）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">STEP 2 — 自覚症状入力（症状スコア P）</div>
+    <div class="card"><div class="card-body">
+      <div style="font-size:12px;font-weight:700;color:var(--su);margin-bottom:10px;">気になる部位（複数可）</div>
+      <div class="symp-grid" id="meas-symp-areas">
+        <div class="symp-chip" data-area="neck"   onclick="toggleMeasArea(this)">首・頸部</div>
+        <div class="symp-chip" data-area="sho"    onclick="toggleMeasArea(this)">肩・肩甲骨</div>
+        <div class="symp-chip" data-area="back"   onclick="toggleMeasArea(this)">背中・胸部</div>
+        <div class="symp-chip" data-area="lumbar" onclick="toggleMeasArea(this)">腰部</div>
+        <div class="symp-chip" data-area="hip"    onclick="toggleMeasArea(this)">股関節・骨盤</div>
+        <div class="symp-chip" data-area="none"   onclick="toggleMeasArea(this)">✅ 症状なし</div>
+      </div>
+      <div class="sl-row">
+        <div class="sl-lbl">痛み強度 VAS</div>
+        <input class="sl" id="sl-pain" type="range" min="0" max="10" step="1" value="0" oninput="calcAllScores()">
+        <span class="sl-val" id="sv-pain">0</span><span class="sl-unit">/10</span>
+      </div>
+      <div class="sl-row">
+        <div class="sl-lbl">頻度</div>
+        <input class="sl" id="sl-freq" type="range" min="0" max="2" step="1" value="1" oninput="calcAllScores()">
+        <span class="sl-val" id="sv-freq">時々</span>
+      </div>
+    </div></div>
+
+    <div class="sec">STEP 3 — サーモグラフィ（HSI）</div>
+    <div class="card"><div class="card-body" style="padding:12px;">
+      <canvas id="thermo-c" class="thermo-canvas"></canvas>
+      <div class="thermo-legend"><span>低温</span><span>体温分布</span><span>高温</span></div>
+      <div class="thermo-grad"></div>
+      <div class="thermo-grid">
+        <div class="th-cell"><div class="tc-ll">H1 頸胸部</div><div class="tc-vv" id="th-h1" style="color:var(--or);">+0.31℃</div></div>
+        <div class="th-cell"><div class="tc-ll">H2 横隔膜</div><div class="tc-vv" id="th-h2" style="color:var(--re);">+0.54℃</div></div>
+        <div class="th-cell"><div class="tc-ll">H3 胸腰部</div><div class="tc-vv" id="th-h3" style="color:var(--te);">+0.18℃</div></div>
+      </div>
+      <div class="sl-row" style="margin-top:12px;">
+        <div class="sl-lbl">HSI 平均</div>
+        <input class="sl" id="sl-hsi" type="range" min="0" max="1.0" step="0.01" value="0.28" oninput="calcAllScores()">
+        <span class="sl-val" id="sv-hsi">0.28</span><span class="sl-unit">℃</span>
+      </div>
+    </div></div>
+
+    <div class="sec">STEP 4 — HRV（自律神経指標）</div>
+    <div class="card"><div class="card-body" style="padding:12px;">
+      <canvas id="hrv-c" class="hrv-canvas" width="400" height="70"></canvas>
+      <div class="hrv-grid">
+        <div class="hrv-cell"><div class="hc-l">HRV 指数</div><div class="hc-v" id="hrv-sdnn" style="color:var(--te);">53</div></div>
+        <div class="hrv-cell"><div class="hc-l">RMSSD</div><div class="hc-v" id="hrv-rmssd">31</div></div>
+        <div class="hrv-cell"><div class="hc-l">判定</div><div class="hc-v" id="hrv-judge" style="font-size:13px;color:var(--or);">境界</div></div>
+      </div>
+      <div class="sl-row" style="margin-top:10px;">
+        <div class="sl-lbl">HRV 指数</div>
+        <input class="sl" id="sl-hrv" type="range" min="20" max="80" step="1" value="53" oninput="calcAllScores()">
+        <span class="sl-val" id="sv-hrv">53</span>
+      </div>
+    </div></div>
+
+    <div class="sec">STEP 5 — 補助パラメーター</div>
+    <div class="card"><div class="card-body">
+      <div class="sl-row"><div class="sl-lbl">mu 放熱能</div><input class="sl" id="sl-mu" type="range" min="0" max="1" step="0.05" value="0.4" oninput="calcAllScores()"><span class="sl-val" id="sv-mu">0.40</span></div>
+      <div class="sl-row"><div class="sl-lbl">dTc 臨界温差</div><input class="sl" id="sl-dtc" type="range" min="0" max="1" step="0.05" value="0.30" oninput="calcAllScores()"><span class="sl-val" id="sv-dtc">0.30</span><span class="sl-unit">℃</span></div>
+      <div class="sl-row"><div class="sl-lbl">theta 回旋</div><input class="sl" id="sl-theta" type="range" min="0" max="20" step="0.5" value="5.0" oninput="calcAllScores()"><span class="sl-val" id="sv-theta">5.0</span><span class="sl-unit">°</span></div>
+    </div></div>
+
+    <!-- リアルタイム算出 -->
+    <div class="rt-box">
+      <div class="rt-lbl">リアルタイム算出 — 身体状態推定モデル</div>
+      <div class="rt-grid">
+        <div><div class="ri-l">tau（累積回旋）</div><div class="ri-v" id="rt-tau">-</div></div>
+        <div><div class="ri-l">Phi（τ–T–Φ）</div><div class="ri-v ri-am" id="rt-phi">-</div></div>
+        <div><div class="ri-l">dTss（鬱熱）</div><div class="ri-v ri-am" id="rt-dtss">-</div></div>
+      </div>
+      <div style="height:10px;"></div>
+      <div class="rt-grid">
+        <div><div class="ri-l">構造スコア S</div><div class="ri-v ri-sblue" id="rt-S">-</div></div>
+        <div><div class="ri-l">症状スコア P</div><div class="ri-v ri-sred" id="rt-P">-</div></div>
+        <div><div class="ri-l">適応スコア A</div><div class="ri-v ri-sgreen" id="rt-A">-</div></div>
+      </div>
+    </div>
+
+    <!-- 不一致パターン解釈 -->
+    <div class="theorem ok" id="meas-pattern">
+      <div class="th-title" id="meas-pt-title">計測値を入力してください</div>
+      <div id="meas-pt-body"></div>
+    </div>
+
+    <!-- 定理1 -->
+    <div class="theorem ok" id="meas-thm"><div id="meas-th-inner"><div class="th-cond" style="color:var(--su);">計測値を入力してください</div></div></div>
+
+    <button class="btn btn-gr" id="btn-save" onclick="saveMeasure()">✅ 測定結果を確定・保存</button>
+    <div id="save-ok" style="display:none;text-align:center;font-size:13px;color:var(--gr);font-weight:700;padding:8px 0;">✓ 保存しました</div>
+    <div class="bpad"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ---- DATA ---- */
+var DEMO = [
+  {id:'p1',name:'田中 花子',age:58,gender:'f',tel:'090-1111-2222',comp:'肩こり・逆流性食道炎',hist:'特記なし',teeth:'20',keeper:'wear',
+   sess:[{date:'2026/04/10',pti:9.1,tau:9.4,hsi:0.28,hrv:52,mu:0.4,dtc:0.3,phi:0.43,S:0.42,P:0.18,A:0.24,risk:0.55,conf:0.58,symp:{areas:['sho'],pain:2,freq:'often'}},
+         {date:'2025/12/20',pti:7.8,tau:8.0,hsi:0.22,hrv:56,mu:0.42,dtc:0.25,phi:0.36,S:0.35,P:0.22,A:0.13,risk:0.44,conf:0.42,symp:{areas:['neck'],pain:3,freq:'often'}}]},
+  {id:'p2',name:'鈴木 一郎',age:63,gender:'m',tel:'',comp:'心房細動・慢性疲労',hist:'高血圧（内服）',teeth:'10',keeper:'loss',
+   sess:[{date:'2026/04/08',pti:17.2,tau:17.8,hsi:0.48,hrv:31,mu:0.3,dtc:0.6,phi:0.61,S:0.72,P:0.15,A:0.57,risk:0.78,conf:0.65,symp:{areas:['none'],pain:0,freq:'rare'}}]},
+  {id:'p3',name:'佐藤 美智子',age:44,gender:'f',tel:'',comp:'頭痛・集中力低下',hist:'なし',teeth:'28',keeper:'intact',
+   sess:[{date:'2026/04/05',pti:3.2,tau:3.5,hsi:0.12,hrv:64,mu:0.6,dtc:0.1,phi:0.24,S:0.18,P:0.20,A:0.0,risk:0.22,conf:0.40,symp:{areas:['head'],pain:4,freq:'often'}}]}
+];
+
+function loadDb(){try{var r=localStorage.getItem('axispro_v2');return r?JSON.parse(r):JSON.parse(JSON.stringify(DEMO));}catch(e){return JSON.parse(JSON.stringify(DEMO));}}
+function saveDb(){try{localStorage.setItem('axispro_v2',JSON.stringify(db.pats));localStorage.setItem('axispro_v2_aid',db.aid||'');}catch(e){}}
+
+var db={pats:loadDb(),aid:(function(){try{return localStorage.getItem('axispro_v2_aid')||null;}catch(e){return null;}})()};
+var measPti=0;
+var apScanMode='front';
+
+function setAPScanMode(mode){
+  apScanMode=mode;
+  var isSide=mode==='side';
+  var btnF=document.getElementById('ap-mode-front');
+  var btnS=document.getElementById('ap-mode-side');
+  btnF.style.background=isSide?'#fff':'#0D2340';
+  btnF.style.color=isSide?'#6b7280':'#fff';
+  btnF.style.borderColor=isSide?'#d1d5db':'#0D2340';
+  btnS.style.background=isSide?'#0D2340':'#fff';
+  btnS.style.color=isSide?'#fff':'#6b7280';
+  btnS.style.borderColor=isSide?'#0D2340':'#d1d5db';
+  document.getElementById('ap-hint-front').style.display=isSide?'none':'flex';
+  document.getElementById('ap-hint-side').style.display=isSide?'flex':'none';
+  document.getElementById('ap-no-ph-txt').innerHTML=isSide?
+    '側面から全身を撮影<br>またはライブラリから選択':
+    '正面から全身を撮影<br>またはライブラリから選択';
+  document.getElementById('ap-result-front').style.display=isSide?'none':'block';
+  document.getElementById('ap-result-side').style.display=isSide?'block':'none';
+}
+
+/* ---- HELPERS ---- */
+function $id(i){return document.getElementById(i);}
+function activePat(){return db.pats.find(function(p){return p.id===db.aid;})||null;}
+function latestSess(p){return p.sess.length>0?p.sess[0]:null;}
+function av(g){return g==='f'?'👩':g==='m'?'👨':'🧑';}
+function avcls(g){return g==='f'?'f':g==='m'?'m':'o';}
+function glabel(g){return g==='f'?'女性':g==='m'?'男性':'その他';}
+function today(){return new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'/');}
+
+function toast(msg){
+  var el=$id('toast');el.textContent=msg;el.style.display='block';
+  clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},2500);
+}
+
+function pct(v){return Math.round((v||0)*100)+'%';}
+function sLabel(v,key){
+  var L={S:['良好','やや不良','不良','高負荷'],P:['なし','軽度','中等度','強度'],A:['適応なし','軽代償','代償中','過剰代償'],R:['低','中低','中','高']};
+  var t=L[key]||L.S;
+  return v<0.25?t[0]:v<0.45?t[1]:v<0.65?t[2]:t[3];
+}
+function confLabel(c){return c>=0.65?'高':c>=0.40?'中':'低';}
+function confTagCls(c){return c>=0.65?'conf-hi':c>=0.40?'conf-mid':'conf-lo';}
+
+/* ---- 状態推定モデル ---- */
+function calcBodyState(s){
+  var S=s.S||0, P=s.P||0;
+  var A=Math.max(0,Math.min(1,S-P));
+  var risk=1/(1+Math.exp(-(S*4-2+P*2)));
+  risk=Math.min(1,Math.max(0,risk));
+  return{S:S,P:P,A:A,risk:risk};
+}
+
+function buildPatternInsight(S,P,A,risk,conf){
+  var text='',badges=[],cls='ok';
+  if(conf<0.35){
+    text='データが少なく推定精度は低です。';
+    badges=[{l:'データ不足',c:'b-struct'}];cls='ok';
+  }else if(A>0.3&&S>0.45&&P<0.2){
+    text='【適応状態】構造的負荷（S='+pct(S)+'）があるにもかかわらず症状が少ない（P='+pct(P)+'）状態です。身体が負荷に適応しています（代償性無症状）。将来的なリスクに注意が必要です。';
+    badges=[{l:'適応状態（代償性）',c:'b-adapt'},{l:'潜在リスク',c:'b-risk'}];cls='adapt';
+  }else if(P>S+0.2){
+    text='【過剰症状】症状（P='+pct(P)+'）が構造的変化（S='+pct(S)+'）を上回っています。姿勢以外の要因（内科・神経系・心理的）の関与を鑑別してください。';
+    badges=[{l:'姿勢以外の要因',c:'b-struct'}];cls='warn';
+  }else if(S<0.25&&P<0.2){
+    text='構造・症状ともに良好な状態です。';
+    badges=[{l:'良好',c:'b-ok'}];cls='ok';
+  }else if(S>0.55){
+    text='構造的負荷が高い状態です（S='+pct(S)+'）。症状の有無にかかわらず積極的な介入を検討してください。';
+    badges=[{l:'構造的負荷高',c:'b-risk'}];cls='warn';
+  }else{
+    text='構造スコアと症状スコアがほぼ一致しています（S='+pct(S)+'、P='+pct(P)+'）。経過を観察してください。';
+    badges=[{l:'経過観察',c:'b-struct'}];cls='ok';
+  }
+  return{text:text,badges:badges,cls:cls};
+}
+
+function setSlBg(id,pct2,col){
+  var el=$id(id);if(!el)return;
+  var p=Math.round(Math.max(0,Math.min(100,pct2)));
+  el.style.background='linear-gradient(to right,'+col+' 0%,'+col+' '+p+'%,#cbd5e1 '+p+'%,#cbd5e1 100%)';
+}
+
+/* ---- NAV ---- */
+function goTab(name){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  $id('panel-'+name).classList.add('on');
+  $id('t-'+name).classList.add('on');
+  if(name==='pats') renderList();
+  if(name==='dash') updateDash();
+}
+function openScreen(id){$id(id).classList.add('on');$id(id).scrollTop=0;}
+function closeScreen(id){$id(id).classList.remove('on');if(id==='scr-reg') clearReg();}
+
+/* ---- DASHBOARD ---- */
+function updateDash(){
+  var total=db.pats.length,adapt=0,crit=0;
+  db.pats.forEach(function(p){
+    var s=latestSess(p);if(!s)return;
+    var state=calcBodyState(s);
+    if(state.A>0.3&&state.S>0.4&&state.P<0.2) adapt++;
+    var condA=s.dtc>0,condB=s.phi>=0.50;
+    if(condA&&condB) crit++;
+  });
+  $id('d-total').textContent=total;
+  $id('d-adapt').textContent=adapt;
+  $id('d-crit').textContent=crit;
+  var p=activePat();
+  if(!p){$id('dash-no-pat').style.display='flex';$id('dash-pat').style.display='none';return;}
+  $id('dash-no-pat').style.display='none';$id('dash-pat').style.display='block';
+  var s=latestSess(p);
+  var state=s?calcBodyState(s):{S:0,P:0,A:0,risk:0};
+  var conf=s?(s.conf||0.3):0;
+  var av_el=$id('dash-av');av_el.textContent=av(p.gender);av_el.className='pa-av '+avcls(p.gender);
+  $id('dash-name').textContent=p.name;
+  $id('dash-meta').textContent=p.age+'歳 | '+(p.comp||'主訴未記入');
+  $id('dash-phi').textContent=s?pct(state.S):'未測定';
+
+  // 状態推定表示
+  $id('dash-S').textContent=s?pct(state.S):'—';$id('dash-S-l').textContent=s?sLabel(state.S,'S'):'';
+  $id('dash-P').textContent=s?pct(state.P):'—';$id('dash-P-l').textContent=s?sLabel(state.P,'P'):'';
+  $id('dash-A').textContent=s?pct(state.A):'—';$id('dash-A-l').textContent=s?sLabel(state.A,'A'):'';
+  $id('dash-risk').textContent=s?pct(state.risk):'—';$id('dash-risk-l').textContent=s?(sLabel(state.risk,'R')+'リスク'):'';
+  $id('dash-conf-bar').style.width=(conf*100)+'%';
+  var ctag=$id('dash-conf-tag');ctag.textContent=confLabel(conf)+'（'+p.sess.length+'回）';ctag.className='conf-tag '+confTagCls(conf);
+
+  // パターン判定
+  var pat=s?buildPatternInsight(state.S,state.P,state.A,state.risk,conf):{text:'測定データがありません',badges:[],cls:'ok'};
+  $id('dash-pattern').textContent=pat.text;
+  $id('dash-pat-badges').innerHTML=pat.badges.map(function(b){return '<span class="pat-badge '+b.c+'">'+b.l+'</span>';}).join('');
+
+  // 定理1
+  renderTheorem(p,s||{phi:0,dtc:0},'dash-thm','dash-th-t','dash-th-c');
+}
+
+function renderTheorem(p,s,boxId,titleId,condsId){
+  var phi=s.phi||0,dtc=s.dtc||0;
+  var condA=dtc>0,condB=phi>=0.50;
+  var all2=condA&&condB;
+  $id(boxId).className='theorem '+(all2?'danger':condA||condB?'warn':'ok');
+  if(titleId) $id(titleId).textContent=all2?'🚫 介入禁忌（定理1成立）':condA||condB?'⚠️ 要注意（部分条件）':'✅ 介入可能';
+  $id(condsId).innerHTML=
+    '<div class="th-cond '+(condA?'c-ng':'c-ok')+'">'+( condA?'⚠':'✓')+' 条件A: dTc '+dtc.toFixed(2)+(condA?' (臨界超過)':' (正常)')+'</div>'+
+    '<div class="th-cond '+(condB?'c-ng':'c-ok')+'">'+( condB?'⚠':'✓')+' 条件B: Phi '+phi.toFixed(2)+(condB?' ≥ 0.50':' < 0.50')+'</div>'+
+    '<div class="th-cond c-ok">✓ 条件C: dPhi/dtau > 0 (増悪傾向なし)</div>';
+}
+
+/* ---- PATIENT LIST ---- */
+function renderList(){
+  var q=($id('search-inp').value||'').trim();
+  var pats=q?db.pats.filter(function(p){return p.name.includes(q);}):db.pats;
+  var listEl=$id('pat-list'),noEl=$id('no-pat');
+  if(db.pats.length===0){listEl.innerHTML='';noEl.style.display='block';return;}
+  noEl.style.display='none';
+  if(pats.length===0){listEl.innerHTML='<div style="padding:20px;text-align:center;color:var(--su);font-size:13px;">該当患者なし</div>';return;}
+  listEl.innerHTML=pats.map(function(p){
+    var s=latestSess(p);
+    var state=s?calcBodyState(s):{S:0,P:0,A:0};
+    var last=s?s.date:'未計測';
+    var adaptMark=state.A>0.3&&state.S>0.4&&state.P<0.2;
+    return '<div class="pat-item" onclick="openPatient(\''+p.id+'\')">'+
+      '<div class="pi-av '+avcls(p.gender)+'">'+av(p.gender)+'</div>'+
+      '<div style="flex:1;min-width:0;"><div class="pi-name">'+p.name+' / '+p.age+'歳 '+glabel(p.gender)+'</div>'+
+      '<div class="pi-meta">最終: '+last+' | '+p.sess.length+'回</div>'+
+      (adaptMark?'<span style="font-size:10px;color:var(--pu);font-weight:700;">🧠 適応状態</span>':'')+
+      '</div>'+
+      '<div class="pi-right">'+
+      '<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;">'+
+      '<span style="font-size:10px;color:var(--sblue);">S:'+pct(state.S)+'</span>'+
+      '<span style="font-size:10px;color:var(--sred);">P:'+pct(state.P)+'</span>'+
+      '<span style="font-size:10px;color:var(--sgreen);">A:'+pct(state.A)+'</span>'+
+      '</div></div>'+
+      '</div>';
+  }).join('');
+}
+
+/* ---- PATIENT DETAIL ---- */
+function openPatient(id){
+  db.aid=id;saveDb();
+  var p=activePat();if(!p)return;
+  var s=latestSess(p);
+  var state=s?calcBodyState(s):{S:0,P:0,A:0,risk:0};
+  var kMap={intact:'正常咬合',wear:'摩耗あり',partial:'部分欠損',loss:'欠損（キーパーロス）'};
+  $id('det-title').textContent=p.name;
+  $id('det-sub').textContent=p.age+'歳 '+glabel(p.gender);
+  var av_el=$id('det-av');av_el.textContent=av(p.gender);av_el.className='pa-av '+avcls(p.gender);
+  $id('det-name').textContent=p.name;
+  $id('det-meta').textContent=p.age+'歳 | '+(p.comp||'主訴未記入');
+  $id('det-phi').textContent=s?pct(state.S):'未測定';
+
+  // 3スコア
+  if(s){
+    $id('det-trio').style.display='grid';
+    $id('det-barS').style.width=(state.S*100)+'%';
+    $id('det-barP').style.width=(state.P*100)+'%';
+    $id('det-barA').style.width=(state.A*100)+'%';
+    $id('det-S').textContent=pct(state.S);$id('det-S-l').textContent=sLabel(state.S,'S');
+    $id('det-P').textContent=pct(state.P);$id('det-P-l').textContent=sLabel(state.P,'P');
+    $id('det-A').textContent=pct(state.A);$id('det-A-l').textContent=sLabel(state.A,'A');
+  }
+
+  var rows=[['主訴',p.comp||'-'],['既往歴',p.hist||'-'],['残存歯数',p.teeth+'本'],['左キーパー',kMap[p.keeper]||'-']];
+  if(p.tel) rows.push(['連絡先',p.tel]);
+  $id('det-info').innerHTML=rows.map(function(r){
+    return '<div class="irow"><div class="ir-l">'+r[0]+'</div><div class="ir-v">'+r[1]+'</div></div>';
+  }).join('');
+
+  var sessEl=$id('det-sess');
+  if(p.sess.length===0){sessEl.innerHTML='<div style="padding:20px;text-align:center;color:var(--su);font-size:13px;">まだ計測データがありません</div>';}
+  else{sessEl.innerHTML=p.sess.map(function(s2){
+    var st2=calcBodyState(s2);
+    var conf=s2.conf||0.3;
+    return '<div class="sess-item">'+
+      '<div class="si-date">'+s2.date.slice(5)+'</div>'+
+      '<div class="si-bars">'+
+      '<div class="si-bar-row"><div class="si-fill" style="width:'+Math.round(st2.S*80)+'px;max-width:80px;background:var(--sblue);"></div><span style="font-size:10px;color:var(--sblue);">S:'+pct(st2.S)+'</span></div>'+
+      '<div class="si-bar-row"><div class="si-fill" style="width:'+Math.round(st2.P*80)+'px;max-width:80px;background:var(--sred);"></div><span style="font-size:10px;color:var(--sred);">P:'+pct(st2.P)+'</span></div>'+
+      '</div>'+
+      '<div class="si-phi" style="color:var(--sgreen);">A:'+pct(st2.A)+'</div>'+
+      '<span class="si-tag" style="background:'+(conf<0.4?'#fee2e2':conf<0.65?'#fef3c7':'#d1fae5')+';color:'+(conf<0.4?'var(--re)':conf<0.65?'var(--or)':'var(--gr)')+';font-size:9px;">信頼'+confLabel(conf)+'</span>'+
+      '</div>';
+  }).join('');}
+  openScreen('scr-detail');
+  updateDash();
+}
+
+function doDelete(){
+  var p=activePat();if(!p)return;
+  if(!confirm('「'+p.name+'」を削除してもよいですか？'))return;
+  db.pats=db.pats.filter(function(x){return x.id!==p.id;});
+  db.aid=null;saveDb();
+  closeScreen('scr-detail');renderList();updateDash();
+  toast('患者を削除しました');
+}
+
+/* ---- REGISTER ---- */
+function clearReg(){
+  ['f-name','f-age','f-tel','f-comp','f-hist'].forEach(function(id){var el=$id(id);if(el)el.value='';});
+  ['f-gender','f-teeth','f-keeper'].forEach(function(id){var el=$id(id);if(el)el.selectedIndex=0;});
+  $id('f-teeth').value='28';$id('f-keeper').value='intact';
+}
+function doRegister(){
+  var name=($id('f-name').value||'').trim();
+  var age=parseInt($id('f-age').value);
+  var gender=$id('f-gender').value;
+  if(!name){toast('氏名を入力してください');return;}
+  if(!age||age<1){toast('正しい年齢を入力してください');return;}
+  if(!gender){toast('性別を選択してください');return;}
+  var newP={
+    id:'p'+Date.now(),name:name,age:age,gender:gender,
+    tel:($id('f-tel').value||'').trim(),
+    comp:($id('f-comp').value||'').trim(),
+    hist:($id('f-hist').value||'').trim(),
+    teeth:$id('f-teeth').value,keeper:$id('f-keeper').value,sess:[]
+  };
+  db.pats.unshift(newP);db.aid=newP.id;saveDb();
+  closeScreen('scr-reg');renderList();updateDash();
+  toast('「'+name+'」を登録しました');
+  setTimeout(function(){openPatient(newP.id);},250);
+}
+
+/* ---- MEASUREMENT ---- */
+function openMeasure(){
+  var p=activePat();if(!p){toast('患者を選択してください');return;}
+  $id('meas-name').textContent=p.name;
+  $id('meas-meta').textContent=p.age+'歳 '+glabel(p.gender)+' | '+(p.comp||'');
+  measPti=0;resetPhoto();
+  // 前回値があれば継承
+  var prev=latestSess(p);
+  $id('sl-hsi').value=prev?prev.hsi:'0.28';
+  $id('sl-hrv').value=prev?prev.hrv:'53';
+  $id('sl-mu').value=prev?prev.mu:'0.4';
+  $id('sl-dtc').value=prev?prev.dtc:'0.30';
+  $id('sl-theta').value='5.0';
+  $id('sl-pain').value='0';
+  $id('sl-freq').value='1';
+  document.querySelectorAll('#meas-symp-areas .symp-chip').forEach(function(e){e.classList.remove('on');});
+  calcAllScores();
+  openScreen('scr-meas');
+  requestAnimationFrame(function(){drawThermo();drawHRV();});
+}
+
+function toggleMeasArea(el){el.classList.toggle('on');calcAllScores();}
+
+/* -- Photo -- */
+function onFile(ev){
+  var f=ev.target.files[0];if(!f)return;ev.target.value='';
+  var rd=new FileReader();
+  rd.onload=function(e){var img=new Image();img.onload=function(){runPose(img);};img.src=e.target.result;};
+  rd.readAsDataURL(f);
+}
+function runPose(img){
+  $id('no-ph').style.display='none';$id('proc-ov').style.display='flex';
+  $id('ph-btns').style.display='none';$id('ph-retake').style.display='flex';
+  var canvas=$id('pose-canvas');canvas.style.display='block';
+  var maxW=($id('photo-area').offsetWidth||380),maxH=360;
+  var w=img.width,h=img.height;
+  if(w>maxW){h=h*maxW/w;w=maxW;}if(h>maxH){w=w*maxH/h;h=maxH;}
+  canvas.width=Math.round(w);canvas.height=Math.round(h);
+  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  try{
+    var pose=new Pose({locateFile:function(fn){return 'https://cdn.jsdelivr.net/npm/@mediapipe/pose/'+fn;}});
+    pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    pose.onResults(function(res){onPoseResult(res,canvas);});
+    pose.send({image:canvas}).catch(function(){simPose(canvas);});
+  }catch(e){setTimeout(function(){simPose(canvas);},1400);}
+}
+function onPoseResult(res,canvas){
+  var ctx=canvas.getContext('2d');
+  ctx.drawImage(res.image,0,0,canvas.width,canvas.height);
+  $id('proc-ov').style.display='none';
+  if(!res.poseLandmarks){simPose(canvas);return;}
+  var lms=res.poseLandmarks,W=canvas.width,H=canvas.height;
+  try{drawConnectors(ctx,lms,POSE_CONNECTIONS,{color:'rgba(255,255,255,.3)',lineWidth:1.5});}catch(e){}
+
+  if(apScanMode==='side'){
+    [7,8,11,12,23,24,25,26,27,28].forEach(function(i){
+      if(!lms[i])return;
+      ctx.beginPath();ctx.arc(lms[i].x*W,lms[i].y*H,5,0,2*Math.PI);
+      ctx.fillStyle='#34d399';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    });
+    var earIdx=(lms[7].visibility>lms[8].visibility)?7:8;
+    var shoIdx=earIdx===7?11:12;
+    var hipIdx=earIdx===7?23:24;
+    var ankleIdx=earIdx===7?27:28;
+    var ear=lms[earIdx],sho=lms[shoIdx],hip=lms[hipIdx],ankle=lms[ankleIdx];
+    dLine(ctx,ankle.x*W,ankle.y*H,ankle.x*W,ear.y*H,'rgba(255,255,255,0.2)',1.5);
+    dLine(ctx,sho.x*W,sho.y*H,hip.x*W,hip.y*H,'#60a5fa',2.5);
+    dLine(ctx,hip.x*W,hip.y*H,ankle.x*W,ankle.y*H,'#d97706',2.5);
+    dLine(ctx,ear.x*W,ear.y*H,sho.x*W,ear.y*H,'#f87171',2);
+    var headFwdDeg=Math.atan2(ear.x-sho.x,sho.y-ear.y)*180/Math.PI;
+    var trunkAngle=Math.atan2(hip.x-sho.x,sho.y-hip.y)*180/Math.PI;
+    var cogDeg=Math.atan2((ear.x+hip.x)/2-ankle.x,ankle.y-(ear.y+hip.y)/2)*180/Math.PI;
+    dLabel(ctx,ear.x*W,ear.y*H,headFwdDeg.toFixed(1)+'deg','#f87171');
+    dLabel(ctx,sho.x*W,sho.y*H,trunkAngle.toFixed(1)+'deg','#60a5fa');
+    dLabel(ctx,ankle.x*W,ankle.y*H,cogDeg.toFixed(1)+'deg','#d97706');
+    showPoseSideResult(headFwdDeg,trunkAngle,cogDeg);
+  }else{
+    [11,12,23,24,25,26,27,28].forEach(function(i){
+      ctx.beginPath();ctx.arc(lms[i].x*W,lms[i].y*H,5,0,2*Math.PI);
+      ctx.fillStyle='#E8A020';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+    });
+    var sA=ang(lms[11],lms[12]),hA=ang(lms[23],lms[24]);
+    dLine(ctx,lms[11].x*W,lms[11].y*H,lms[12].x*W,lms[12].y*H,'#60a5fa',2.5);
+    dLine(ctx,lms[23].x*W,lms[23].y*H,lms[24].x*W,lms[24].y*H,'#d97706',2.5);
+    dLabel(ctx,lms[11].x*W,lms[11].y*H,sA.toFixed(1)+'deg','#60a5fa');
+    dLabel(ctx,lms[23].x*W,lms[23].y*H,hA.toFixed(1)+'deg','#d97706');
+    showPoseResult(sA,hA,Math.abs(sA-hA));
+  }
+}
+function simPose(canvas){
+  $id('proc-ov').style.display='none';
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+  if(apScanMode==='side'){
+    var hf=(Math.random()-.2)*10,tr=(Math.random()-.3)*8,cg=(Math.random()-.3)*6;
+    dLine(ctx,W*.50,H*.22,W*.50+tr*1.5,H*.52,'#60a5fa',2.5);
+    dLine(ctx,W*.50+tr*1.5,H*.52,W*.50,H*.82,'#d97706',2.5);
+    dLine(ctx,W*.48+hf*1.5,H*.12,W*.48,H*.12,'#f87171',2);
+    [[W*.48+hf*1.5,H*.12],[W*.50,H*.22],[W*.50+tr*1.5,H*.52],[W*.50,H*.82]].forEach(function(xy){
+      ctx.beginPath();ctx.arc(xy[0],xy[1],5,0,2*Math.PI);ctx.fillStyle='#34d399';ctx.fill();
+    });
+    dLabel(ctx,W*.48+hf*1.5,H*.12,hf.toFixed(1)+'deg','#f87171');
+    dLabel(ctx,W*.50,H*.22,tr.toFixed(1)+'deg','#60a5fa');
+    dLabel(ctx,W*.50,H*.82,cg.toFixed(1)+'deg','#d97706');
+    showPoseSideResult(hf,tr,cg);
+  }else{
+    var sA=(Math.random()-.5)*12,hA=(Math.random()-.5)*14;
+    dLine(ctx,W*.28,H*.25+sA*.6,W*.72,H*.25-sA*.6,'#60a5fa',2.5);
+    dLine(ctx,W*.34,H*.52+hA*.6,W*.66,H*.52-hA*.6,'#d97706',2.5);
+    dLabel(ctx,W*.28,H*.25,sA.toFixed(1)+'deg','#60a5fa');
+    dLabel(ctx,W*.34,H*.52,hA.toFixed(1)+'deg','#d97706');
+    [[W*.28,H*.25],[W*.72,H*.25],[W*.34,H*.52],[W*.66,H*.52],
+     [W*.36,H*.67],[W*.64,H*.67],[W*.37,H*.83],[W*.63,H*.83]].forEach(function(xy){
+      ctx.beginPath();ctx.arc(xy[0],xy[1],5,0,2*Math.PI);ctx.fillStyle='#E8A020';ctx.fill();
+    });
+    showPoseResult(sA,hA,Math.abs(sA-hA));
+  }
+}
+function ang(a,b){return Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;}
+function dLine(ctx,x1,y1,x2,y2,col,lw){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();}
+function dLabel(ctx,x,y,text,col){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x,y-17,text.length*7+6,18);ctx.fillStyle=col;ctx.font='bold 11px sans-serif';ctx.fillText(text,x+2,y-3);}
+
+function showPoseSideResult(headFwdDeg,trunkAngle,cogDeg){
+  var theta_side=(Math.abs(headFwdDeg)*0.4+Math.abs(trunkAngle)*0.4+Math.abs(cogDeg)*0.2);
+  var pti_side=Math.abs(cogDeg);
+  // PTIとして代入してcalcAllScoresに引き継ぐ
+  measPti=pti_side;
+  // 表示
+  $id('ap-pr-hf').textContent=headFwdDeg.toFixed(1)+'deg';
+  $id('ap-pr-tr').textContent=trunkAngle.toFixed(1)+'deg';
+  $id('ap-pr-cg').textContent=cogDeg.toFixed(1)+'deg';
+  $id('ap-result-front').style.display='none';
+  $id('ap-result-side').style.display='block';
+  // sl-thetaスライダーに矢状面θを自動セット（存在する場合）
+  var slTheta=$id('sl-theta');
+  if(slTheta){slTheta.value=Math.min(20,theta_side.toFixed(1));}
+  $id('pose-strip').style.display='block';
+  calcAllScores();
+}
+
+function showPoseResult(sA,hA,pti){
+  measPti=pti;
+  $id('pr-sho').textContent=sA.toFixed(1)+'deg';
+  $id('pr-pel').textContent=hA.toFixed(1)+'deg';
+  $id('pr-pti').textContent=pti.toFixed(1)+'deg';
+  $id('pose-strip').style.display='block';
+  calcAllScores();
+}
+function resetPhoto(){
+  measPti=0;
+  $id('no-ph').style.display='flex';$id('pose-canvas').style.display='none';
+  $id('ph-btns').style.display='flex';$id('ph-retake').style.display='none';
+  $id('pose-strip').style.display='none';$id('proc-ov').style.display='none';
+  $id('ap-result-front').style.display='block';
+  $id('ap-result-side').style.display='none';
+}
+
+/* -- calcAllScores -- */
+function calcAllScores(){
+  var hsi=parseFloat($id('sl-hsi').value)||0;
+  var hrv=parseInt($id('sl-hrv').value)||53;
+  var mu=parseFloat($id('sl-mu').value)||0.4;
+  var dtc=parseFloat($id('sl-dtc').value)||0.3;
+  var theta=parseFloat($id('sl-theta').value)||5;
+  var pain=parseInt($id('sl-pain').value)||0;
+  var freqIdx=parseInt($id('sl-freq').value)||1;
+  var freqV=['rare','often','always'][freqIdx];
+  var pti=measPti||0;
+
+  $id('sv-hsi').textContent=hsi.toFixed(2);
+  $id('sv-hrv').textContent=hrv;
+  $id('sv-mu').textContent=mu.toFixed(2);
+  $id('sv-dtc').textContent=dtc.toFixed(2);
+  $id('sv-theta').textContent=theta.toFixed(1);
+  $id('sv-pain').textContent=pain;
+  $id('sv-freq').textContent=['まれ','時々','常時'][freqIdx];
+
+  setSlBg('sl-hsi',(hsi/1)*100,'#dc2626');
+  setSlBg('sl-hrv',((hrv-20)/60)*100,'#0891b2');
+  setSlBg('sl-mu',mu*100,'#7c3aed');
+  setSlBg('sl-dtc',dtc*100,'#059669');
+  setSlBg('sl-pain',(pain/10)*100,'#f87171');
+
+  // τ–T–Φ
+  var tau=Math.sqrt(pti*pti+0.3*theta*theta);
+  var dtss=(0.3*tau*tau/Math.max(mu,0.05)).toFixed(2);
+  var fPTI=Math.min(1,Math.max(0,(pti-5)/10));
+  var fHSI=Math.min(1,Math.max(0,(hsi-0.15)/0.35));
+  var fHRV=Math.min(1,Math.max(0,(60-hrv)/20));
+  var phi=Math.min(1,0.35*fPTI+0.30*fHSI+0.15*fHRV+0.10*mu+0.10*dtc);
+
+  $id('rt-tau').textContent=tau.toFixed(1);
+  $id('rt-phi').textContent=phi.toFixed(2);
+  $id('rt-dtss').textContent=dtss;
+
+  $id('hrv-sdnn').textContent=hrv;
+  $id('hrv-rmssd').textContent=Math.round(hrv*0.6);
+  var hrvJ=hrv>=60?'良好':hrv>=40?'境界':'低下';
+  $id('hrv-judge').textContent=hrvJ;
+  $id('hrv-judge').style.color=hrv>=60?'var(--gr)':hrv>=40?'var(--or)':'var(--re)';
+
+  // 構造スコア S
+  var S=Math.min(1,Math.max(0,pti*0.06+theta*0.02+hsi*0.3+fPTI*0.2));
+  // 症状スコア P
+  var areas=Array.from(document.querySelectorAll('#meas-symp-areas .symp-chip.on[data-area]')).map(function(e){return e.dataset.area;});
+  var areaW=areas.includes('none')?0:Math.min(1,areas.length/4);
+  var freqW=freqV==='always'?1:freqV==='often'?0.5:0.2;
+  var P=Math.min(1,areaW*0.4+(pain/10)*0.4+freqW*0.2);
+  var A=Math.max(0,Math.min(1,S-P));
+  var risk=Math.min(1,Math.max(0,1/(1+Math.exp(-(S*4-2+P*2)))));
+
+  $id('rt-S').textContent=pct(S);
+  $id('rt-P').textContent=pct(P);
+  $id('rt-A').textContent=pct(A);
+
+  // パターン判定
+  var pat=buildPatternInsight(S,P,A,risk,0.5);
+  var mpt=$id('meas-pattern');
+  mpt.className='theorem '+pat.cls;
+  $id('meas-pt-title').textContent='🧠 パターン判定：不一致の解釈';
+  $id('meas-pt-body').innerHTML='<div class="th-cond">'+pat.text+'</div>'+
+    pat.badges.map(function(b){return '<span class="pat-badge '+b.c+'" style="margin-top:6px;display:inline-block;">'+b.l+'</span>';}).join('');
+
+  // 定理1
+  var condA=dtc>0,condB=phi>=0.50;
+  var any2=condA&&condB;
+  var thm=$id('meas-thm');
+  thm.className='theorem '+(any2?'danger':'ok');
+  $id('meas-th-inner').innerHTML=
+    '<div class="th-title">'+(any2?'🚫 禁忌要注意（定理1）':'✅ 介入可能 — 積極介入を推奨')+'</div>'+
+    '<div class="th-cond '+(condA?'c-ng':'c-ok')+'">'+( condA?'⚠':'✓')+' 条件A: dTc '+dtc.toFixed(2)+(condA?' (臨界超過)':' (正常)')+'</div>'+
+    '<div class="th-cond '+(condB?'c-ng':'c-ok')+'">'+( condB?'⚠':'✓')+' 条件B: Phi '+phi.toFixed(2)+(condB?' ≥ 0.50':' < 0.50')+'</div>'+
+    '<div class="th-cond c-ok">✓ 条件C: dPhi/dtau > 0 (増悪傾向なし)</div>';
+
+  window._mc={pti:pti,tau:+tau.toFixed(1),hsi:hsi,hrv:hrv,mu:mu,dtc:dtc,phi:+phi.toFixed(2),theta:theta,
+              S:+S.toFixed(3),P:+P.toFixed(3),A:+A.toFixed(3),risk:+risk.toFixed(3),
+              symp:{areas:areas,pain:pain,freq:freqV}};
+}
+
+/* -- Save -- */
+function saveMeasure(){
+  var p=activePat();if(!p){toast('患者が選択されていません');return;}
+  var c=window._mc;if(!c){toast('計測値を入力してください');return;}
+  var n=p.sess.length+1;
+  var conf=Math.min(1,n/8*0.6+0.4*0.5);
+  var sess={
+    date:today(),pti:c.pti,tau:c.tau,hsi:c.hsi,hrv:c.hrv,mu:c.mu,dtc:c.dtc,phi:c.phi,theta:c.theta,
+    S:c.S,P:c.P,A:c.A,risk:c.risk,conf:+conf.toFixed(2),
+    symp:c.symp
+  };
+  p.sess.unshift(sess);saveDb();
+  buildReport(p,sess);
+  $id('save-ok').style.display='block';
+  setTimeout(function(){
+    $id('save-ok').style.display='none';
+    closeScreen('scr-meas');closeScreen('scr-detail');
+    openPatient(p.id);updateDash();
+    toast('測定結果を保存しました');
+  },1200);
+}
+
+function buildReport(p,s){
+  var state=calcBodyState(s);
+  var pat=buildPatternInsight(state.S,state.P,state.A,state.risk,s.conf||0.4);
+  var condA=s.dtc>0,condB=s.phi>=0.50;
+  var verdict=(condA&&condB)?'禁忌条件成立 → 医療機関紹介':'全条件 NOT 成立 → 積極介入 可';
+  $id('rep-guide').style.display='none';$id('rep-content').style.display='block';
+  $id('rep-b').innerHTML=
+    '測定日：'+s.date+'<br>患者：'+p.name+'（'+p.age+'歳）<br>'+
+    'PTI：'+s.pti.toFixed(1)+'°（肩帯-骨盤帯 逆相回旋）<br>'+
+    'tau：'+s.tau+'（等価累積回旋量）<br>'+
+    'HSI：'+s.hsi.toFixed(2)+'℃ | HRV：'+s.hrv+'<br>'+
+    'Phi：'+s.phi.toFixed(2)+'<br>'+
+    '──────────────────<br>'+
+    '<strong>【身体状態推定モデル】</strong><br>'+
+    '構造スコア S = '+pct(state.S)+' （'+sLabel(state.S,'S')+'）<br>'+
+    '症状スコア P = '+pct(state.P)+' （'+sLabel(state.P,'P')+'）<br>'+
+    '適応スコア A = '+pct(state.A)+' （'+sLabel(state.A,'A')+'）<br>'+
+    '将来リスク   = '+pct(state.risk)+'<br>'+
+    '信頼度       = '+confLabel(s.conf||0.4)+'<br>'+
+    '──────────────────<br>'+
+    '<strong>パターン：</strong>'+pat.text+'<br>'+
+    '<strong>定理1：'+verdict+'</strong><br>'+
+    '推奨：術式A（体部解放）＋術式B（咬合調整）';
+
+  $id('rep-a').innerHTML=
+    '本日の姿勢・症状の測定結果をお伝えします。<br><br>'+
+    '構造的なバランスの評価（構造スコア）は <strong>'+pct(state.S)+'</strong> でした。'+
+    '現在の自覚症状（症状スコア）は <strong>'+pct(state.P)+'</strong> です。<br><br>'+
+    (state.A>0.25&&state.S>0.4&&state.P<0.2?
+      '現在、身体が構造的な負荷に<strong>適応している状態</strong>と推定されます。'+
+      'これは症状がなくても将来的なリスクを内包していることがあります。継続的な観察が重要です。':
+      state.P>state.S+0.2?
+      '症状が構造的な変化を上回っています。姿勢以外の要因についても確認が必要な場合があります。':
+      state.S<0.25&&state.P<0.2?
+      '現在は構造・症状ともに良好な状態です。この状態の維持を目標にしましょう。':
+      '定期的な測定を続けることで、より精度の高い状態推定が可能になります。');
+}
+
+/* -- Upgrade -- */
+function doUpgrade(plan){
+  var labels={starter:'スタータープラン ¥4,800/月',pro:'プロフェッショナル ¥9,800/月'};
+  if(confirm(labels[plan]+' へのお申し込みです。\n本番アプリではStripe決済ページへ移動します。'))
+    toast('申し込み完了 — '+labels[plan]);
+}
+
+/* -- Thermo -- */
+function drawThermo(){
+  var canvas=$id('thermo-c');if(!canvas)return;
+  var W=canvas.offsetWidth||380,H=150;canvas.width=W;canvas.height=H;
+  var ctx=canvas.getContext('2d');ctx.fillStyle='#080808';ctx.fillRect(0,0,W,H);
+  var spots=[{x:.5,y:.08,r:.07,t:37.0},{x:.5,y:.18,r:.04,t:37.1},{x:.34,y:.27,r:.09,t:37.3},{x:.66,y:.27,r:.09,t:37.2},
+             {x:.5,y:.31,r:.13,t:37.7},{x:.5,y:.49,r:.14,t:38.1},{x:.5,y:.65,r:.12,t:37.5},
+             {x:.42,y:.72,r:.08,t:37.3},{x:.58,y:.72,r:.08,t:37.2},{x:.43,y:.83,r:.07,t:36.9},{x:.57,y:.83,r:.07,t:36.8}];
+  spots.forEach(function(b){
+    var g=ctx.createRadialGradient(b.x*W,b.y*H,0,b.x*W,b.y*H,b.r*W);
+    g.addColorStop(0,tCol(b.t));g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x*W,b.y*H,b.r*W,0,2*Math.PI);ctx.fill();
+  });
+  ctx.fillStyle='rgba(255,255,255,.4)';ctx.font='bold 9px sans-serif';
+  ctx.fillText('H1',W*.74,H*.31);ctx.fillText('H2',W*.74,H*.49);ctx.fillText('H3',W*.74,H*.65);
+}
+function tCol(t){if(t<36.8)return 'rgba(59,130,246,.8)';if(t<37.2)return 'rgba(16,185,129,.8)';if(t<37.6)return 'rgba(245,158,11,.8)';if(t<38.0)return 'rgba(249,115,22,.8)';return 'rgba(239,68,68,.9)';}
+
+/* -- HRV -- */
+function drawHRV(){
+  var canvas=$id('hrv-c');if(!canvas)return;
+  var W=canvas.offsetWidth||380,H=70;canvas.width=W;canvas.height=H;
+  var ctx=canvas.getContext('2d');ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#e5e7eb';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,35);ctx.lineTo(W,35);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,35);
+  for(var i=0;i<8;i++){var bx=(i/8)*W,bw=W/8,j=(Math.random()-.5)*6;
+    ctx.quadraticCurveTo(bx+bw*.15,27+j,bx+bw*.22,35);ctx.lineTo(bx+bw*.27,44+j);ctx.lineTo(bx+bw*.32,3);
+    ctx.lineTo(bx+bw*.37,55+j);ctx.lineTo(bx+bw*.44,35);ctx.quadraticCurveTo(bx+bw*.62,20+j,bx+bw*.78,35);}
+  ctx.strokeStyle='#0891b2';ctx.lineWidth=1.5;ctx.stroke();
+}
+
+/* -- PWA -- */
+(function(){
+  var mf={name:"AxisPro v2",short_name:"AxisPro",start_url:"./",display:"standalone",background_color:"#eef2f7",theme_color:"#0D2340",
+    icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230D2340'/%3E%3Cellipse cx='96' cy='38' rx='28' ry='28' fill='white'/%3E%3Crect x='86' y='66' width='20' height='76' rx='10' fill='white'/%3E%3Cpath d='M50 108 Q96 128 142 108' stroke='white' stroke-width='14' fill='none' stroke-linecap='round'/%3E%3Cpath d='M56 164 Q96 148 136 164' stroke='white' stroke-width='14' fill='none' stroke-linecap='round'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
+  try{var b=new Blob([JSON.stringify(mf)],{type:'application/json'});$id('ap-manifest').setAttribute('href',URL.createObjectURL(b));}catch(e){}
+  if('serviceWorker' in navigator){try{var sw="const C='ap-v2';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)))));});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});";var sb=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(sb)).catch(function(){});}catch(e){}}
+})();
+
+/* -- INIT -- */
+renderList();
+updateDash();
+</script>
+</body>
+</html>
