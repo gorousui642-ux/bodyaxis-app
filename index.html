@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BodyAxis">
 <link rel="manifest" href="#" id="manifest-link">
-<title>BodyAxis v2 — 直立医学 身体状態推定</title>
+<title>BodyAxis — 身体状態推定モデル</title>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 <style>
@@ -184,50 +184,6 @@ input[type=range].vas::-webkit-slider-thumb{-webkit-appearance:none;width:24px;h
 .al-t{font-size:13px;font-weight:700;}
 .al-s{font-size:12px;color:var(--sub);margin-top:2px;line-height:1.7;}
 
-/* SPA判定パターン */
-.spa-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden;}
-.spa-banner{padding:14px 16px;display:flex;align-items:center;gap:12px;}
-.spa-icon{font-size:28px;flex-shrink:0;}
-.spa-label{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:3px;}
-.spa-type{font-size:17px;font-weight:800;}
-.spa-desc{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.6;}
-.spa-type.sp-eq{color:#059669;}
-.spa-type.sp-gt{color:#d97706;}
-.spa-type.sp-lt{color:#7c3aed;}
-
-/* ねじれゲージ */
-.gauge-wrap{padding:14px;}
-.gauge-title{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:10px;letter-spacing:.06em;}
-.gauge-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.gauge-lbl{font-size:11px;color:var(--text);min-width:72px;}
-.gauge-bg{flex:1;background:var(--bg);border-radius:6px;height:10px;overflow:hidden;position:relative;}
-.gauge-fill{height:10px;border-radius:6px;transition:width .7s cubic-bezier(.4,0,.2,1);}
-.gauge-num{font-size:12px;font-weight:800;min-width:36px;text-align:right;}
-
-/* 未来予測カード */
-.pred-card{background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:var(--r);padding:16px;margin-bottom:12px;}
-.pred-title{font-size:11px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.06em;margin-bottom:12px;}
-.pred-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
-.pred-row:last-child{margin-bottom:0;}
-.pred-prob{font-size:22px;font-weight:800;min-width:52px;line-height:1;}
-.pred-hi{color:#f87171;}
-.pred-mid{color:#fbbf24;}
-.pred-lo{color:#34d399;}
-.pred-body{flex:1;}
-.pred-name{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
-.pred-note{font-size:11px;color:rgba(255,255,255,.55);line-height:1.5;}
-.pred-horizon{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);display:inline-block;margin-top:4px;}
-
-/* フェーズ表示 */
-.phase-bar{display:flex;gap:4px;padding:0 14px 14px;}
-.phase-seg{flex:1;height:8px;border-radius:4px;opacity:.3;}
-.phase-seg.on{opacity:1;}
-.ph0{background:#059669;}
-.ph1{background:#fbbf24;}
-.ph2{background:#f97316;}
-.ph3{background:#dc2626;}
-.phase-labels{display:flex;justify-content:space-between;padding:0 14px 6px;font-size:9px;color:var(--sub);}
-
 /* Paywall */
 .paywall{background:linear-gradient(135deg,var(--navy),#1d4ed8);border-radius:var(--r);padding:22px;margin-bottom:14px;color:#fff;}
 .pw-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;background:var(--amber);color:var(--navy);margin-bottom:10px;display:inline-block;}
@@ -342,25 +298,25 @@ input[type=range].vas::-webkit-slider-thumb{-webkit-appearance:none;width:24px;h
 
     <!-- 総合状態カード -->
     <div class="state-hero">
-      <div class="sh-head">直立医学 身体状態推定 — S·P·A 3指標モデル</div>
+      <div class="sh-head">BODY STATE ESTIMATION — 身体状態推定</div>
       <div class="sh-grid">
         <div class="sh-item s-col">
-          <div class="sh-label">ねじれ量（構造S）</div>
+          <div class="sh-label">構造スコア（S）</div>
           <div class="sh-val" id="h-S">—</div>
           <div class="sh-pct" id="h-S-pct">—</div>
         </div>
         <div class="sh-item p-col">
-          <div class="sh-label">症状強度（知覚P）</div>
+          <div class="sh-label">症状スコア（P）</div>
           <div class="sh-val" id="h-P">—</div>
           <div class="sh-pct" id="h-P-pct">—</div>
         </div>
         <div class="sh-item a-col">
-          <div class="sh-label">代償レベル（適応A）</div>
+          <div class="sh-label">適応スコア（A）</div>
           <div class="sh-val" id="h-A">—</div>
           <div class="sh-pct" id="h-A-pct">—</div>
         </div>
         <div class="sh-item r-col">
-          <div class="sh-label">崩壊フェーズ</div>
+          <div class="sh-label">将来リスク</div>
           <div class="sh-val" id="h-risk">—</div>
           <div class="sh-pct" id="h-risk-pct">—</div>
         </div>
@@ -372,57 +328,9 @@ input[type=range].vas::-webkit-slider-thumb{-webkit-appearance:none;width:24px;h
       </div>
     </div>
 
-    <!-- SPA認識パターン判定 -->
-    <div class="spa-card" id="spa-card">
-      <div class="spa-banner">
-        <div class="spa-icon" id="spa-icon">🔍</div>
-        <div style="flex:1;">
-          <div class="spa-label">認識パターン自動判定</div>
-          <div class="spa-type" id="spa-type">—</div>
-          <div class="spa-desc" id="spa-desc">測定後に自動判定されます</div>
-        </div>
-      </div>
-      <!-- フェーズバー -->
-      <div class="phase-labels"><span>Phase 0</span><span>Phase 1</span><span>Phase 2</span><span>Phase 3</span></div>
-      <div class="phase-bar">
-        <div class="phase-seg ph0" id="ph0"></div>
-        <div class="phase-seg ph1" id="ph1"></div>
-        <div class="phase-seg ph2" id="ph2"></div>
-        <div class="phase-seg ph3" id="ph3"></div>
-      </div>
-    </div>
-
-    <!-- 未来予測カード -->
-    <div class="pred-card" id="pred-card" style="display:none;">
-      <div class="pred-title">🔮 症状移行リスク予測</div>
-      <div id="pred-rows"></div>
-    </div>
-
-    <!-- ねじれ量ゲージ -->
-    <div class="spa-card" id="gauge-card" style="display:none;">
-      <div class="gauge-wrap">
-        <div class="gauge-title">3指標 詳細ゲージ</div>
-        <div class="gauge-row">
-          <div class="gauge-lbl">ねじれ量</div>
-          <div class="gauge-bg"><div class="gauge-fill" id="gauge-s" style="background:#60a5fa;width:0%"></div></div>
-          <div class="gauge-num" id="gauge-s-num" style="color:#60a5fa;">—</div>
-        </div>
-        <div class="gauge-row">
-          <div class="gauge-lbl">熱ストレス指数</div>
-          <div class="gauge-bg"><div class="gauge-fill" id="gauge-p" style="background:#f87171;width:0%"></div></div>
-          <div class="gauge-num" id="gauge-p-num" style="color:#f87171;">—</div>
-        </div>
-        <div class="gauge-row">
-          <div class="gauge-lbl">代償レベル</div>
-          <div class="gauge-bg"><div class="gauge-fill" id="gauge-a" style="background:#34d399;width:0%"></div></div>
-          <div class="gauge-num" id="gauge-a-num" style="color:#34d399;">—</div>
-        </div>
-      </div>
-    </div>
-
     <!-- インサイト -->
     <div class="insight-card">
-      <div class="ins-title">🤖 臨床インサイト（構造→症状 翻訳）</div>
+      <div class="ins-title">🤖 AIインサイト</div>
       <div class="ins-body" id="h-insight">—</div>
       <div id="h-badges" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"></div>
     </div>
@@ -430,43 +338,39 @@ input[type=range].vas::-webkit-slider-thumb{-webkit-appearance:none;width:24px;h
     <!-- 3スコア推移バー -->
     <div class="trio">
       <div class="trio-cell">
-        <div class="tc-lbl" style="color:#60a5fa;">ねじれ量</div>
+        <div class="tc-lbl" style="color:#60a5fa;">構造</div>
         <div class="tc-bar-bg"><div class="tc-bar" id="bar-S" style="background:#60a5fa;width:0%"></div></div>
         <div class="tc-val" id="trio-S" style="color:#60a5fa;">—</div>
-        <div class="tc-pct" id="trio-S-l">—</div>
+        <div class="tc-pct" id="trio-S-l">軽度</div>
       </div>
       <div class="trio-cell">
-        <div class="tc-lbl" style="color:#f87171;">熱ストレス</div>
+        <div class="tc-lbl" style="color:#f87171;">症状</div>
         <div class="tc-bar-bg"><div class="tc-bar" id="bar-P" style="background:#f87171;width:0%"></div></div>
         <div class="tc-val" id="trio-P" style="color:#f87171;">—</div>
-        <div class="tc-pct" id="trio-P-l">—</div>
+        <div class="tc-pct" id="trio-P-l">なし</div>
       </div>
       <div class="trio-cell">
-        <div class="tc-lbl" style="color:#34d399;">代償</div>
+        <div class="tc-lbl" style="color:#34d399;">適応</div>
         <div class="tc-bar-bg"><div class="tc-bar" id="bar-A" style="background:#34d399;width:0%"></div></div>
         <div class="tc-val" id="trio-A" style="color:#34d399;">—</div>
-        <div class="tc-pct" id="trio-A-l">—</div>
+        <div class="tc-pct" id="trio-A-l">良好</div>
       </div>
     </div>
 
-    <!-- 変化カード（介入前後・前回比較） -->
+    <!-- 変化カード -->
     <div class="delta-card" id="delta-card" style="display:none;">
-      <div class="ins-title">📊 前回からの変化（介入効果）</div>
+      <div class="ins-title">📊 前回からの変化</div>
       <div class="delta-row">
-        <div><div class="dr-lbl">ねじれ量（S）</div></div>
+        <div><div class="dr-lbl">構造スコア</div></div>
         <div style="text-align:right;"><div class="dr-val" id="d-S">—</div><div class="dr-note" id="d-S-note">—</div></div>
       </div>
       <div class="delta-row">
-        <div><div class="dr-lbl">熱ストレス指数（P）</div></div>
+        <div><div class="dr-lbl">症状スコア</div></div>
         <div style="text-align:right;"><div class="dr-val" id="d-P">—</div><div class="dr-note" id="d-P-note">—</div></div>
       </div>
       <div class="delta-row">
-        <div><div class="dr-lbl">代償レベル（A）</div></div>
+        <div><div class="dr-lbl">適応スコア</div></div>
         <div style="text-align:right;"><div class="dr-val" id="d-A">—</div><div class="dr-note" id="d-A-note">—</div></div>
-      </div>
-      <div class="delta-row">
-        <div><div class="dr-lbl">崩壊フェーズ</div></div>
-        <div style="text-align:right;"><div class="dr-val" id="d-phase">—</div><div class="dr-note" id="d-phase-note">—</div></div>
       </div>
     </div>
 
@@ -798,82 +702,16 @@ function showToast(msg) {
 */
 
 function calcBodyState(r) {
-  const S = r.S_raw;
-  const P = r.P_raw;
-  const A = Math.max(0, Math.min(1, S - P));
+  const S = r.S_raw;   // 構造スコア (0-1)
+  const P = r.P_raw;   // 症状スコア (0-1)
+  const A = Math.max(0, Math.min(1, S - P)); // 適応スコア
   const risk_raw = 1 / (1 + Math.exp(-(S * 4 - 2 + P * 2)));
   const risk = Math.min(1, Math.max(0, risk_raw));
-  // 崩壊フェーズ計算（0〜3）
-  const phase = S < 0.25 ? 0 : S < 0.45 ? 1 : S < 0.65 ? 2 : 3;
-  return { S, P, A, risk, phase };
-}
-
-// SPA認識パターン判定
-function calcSPAPattern(S, P, A) {
-  const diff = S - P;
-  if (Math.abs(diff) < 0.12) {
-    return {
-      type: 'S＝P　一致型', cls: 'sp-eq', icon: '✅',
-      desc: '構造と症状が一致しています。施術効果の予測精度が高い状態です。',
-      clinical: '経過観察・定期測定を継続してください。'
-    };
-  } else if (diff > 0.12) {
-    return {
-      type: 'S＞P　無自覚進行型', cls: 'sp-gt', icon: '⚠️',
-      desc: `ねじれ量${Math.round(S*100)}%に対し自覚症状は${Math.round(P*100)}%です。身体が代償（適応）しており症状が出ていません。`,
-      clinical: '将来的な症状顕在化リスクがあります。早期介入を推奨します。'
-    };
-  } else {
-    return {
-      type: 'S＜P　過敏型', cls: 'sp-lt', icon: '🧠',
-      desc: `症状強度${Math.round(P*100)}%に対しねじれ量は${Math.round(S*100)}%です。姿勢以外の要因（神経・内科・心理）が関与している可能性があります。`,
-      clinical: '多角的なアプローチが必要です。専門家との連携を検討してください。'
-    };
-  }
-}
-
-// 未来予測
-function calcFuturePredictions(S, P, A, phase) {
-  const preds = [];
-  // 肩→腰への症状移行
-  if (S > 0.3 && P > 0.2) {
-    const prob = Math.min(0.95, S * 0.5 + P * 0.3 + (phase > 1 ? 0.2 : 0));
-    preds.push({
-      name: '症状の部位移動リスク',
-      prob, horizon: '1〜4週間以内',
-      note: 'ねじれパターンから対側・隣接部位への症状波及が想定されます。'
-    });
-  }
-  // フェーズ進行
-  if (phase < 3) {
-    const prog = Math.min(0.9, S * 0.6 + (A > 0.3 ? 0.2 : 0));
-    preds.push({
-      name: `Phase ${phase}→${phase+1} 進行リスク`,
-      prob: prog, horizon: '1〜3ヶ月',
-      note: '現在の介入なしで経過した場合の推定です。'
-    });
-  }
-  // 代償崩壊
-  if (A > 0.3 && S > 0.4) {
-    const collapse = Math.min(0.88, A * 0.7 + S * 0.3);
-    preds.push({
-      name: '代償崩壊（急性症状化）リスク',
-      prob: collapse, horizon: '2〜8週間',
-      note: `代償レベル${Math.round(A*100)}%が限界に近い状態です。急性症状が突出する可能性があります。`
-    });
-  }
-  // 良好予測
-  if (preds.length === 0) {
-    preds.push({
-      name: '安定維持の可能性',
-      prob: 0.82, horizon: '1〜3ヶ月',
-      note: '現在の状態が継続すれば安定した経過が期待できます。'
-    });
-  }
-  return preds;
+  return { S, P, A, risk };
 }
 
 function calcConfidence(n, variance) {
+  // データ数が多く、分散が小さいほど信頼度が高い
   const n_factor = Math.min(1, n / 8);
   const v_factor = Math.max(0, 1 - variance * 4);
   return Math.min(1, n_factor * 0.6 + v_factor * 0.4);
@@ -886,49 +724,51 @@ function calcVariance(vals) {
 }
 
 function applyBayesUpdate(newS, history) {
+  // 単純なベイズ更新（指数移動平均）
   if (history.length === 0) return newS;
-  const alpha = 0.4;
+  const alpha = 0.4; // 新データの重み
   const prev = history[0].S_raw || newS;
   return alpha * newS + (1 - alpha) * prev;
 }
 
-function buildInsight(S, P, A, risk, conf, n, phase) {
-  let text = '', badges = [];
-  const spa = calcSPAPattern(S, P, A);
+function buildInsight(S, P, A, risk, conf, n) {
+  let text = '';
+  let badges = [];
 
   if (conf < 0.35) {
     text = 'データが少ないため推定精度は低です。測定を重ねることで精度が向上します。';
     badges = [{ label:'データ不足', cls:'b-unknown' }];
-  } else if (spa.cls === 'sp-gt') {
-    text = `【無自覚進行型】${spa.desc} ${spa.clinical}`;
-    badges = [{ label:'S＞P 無自覚型', cls:'b-risk' }, { label:`Phase ${phase}`, cls:'b-struct' }];
-  } else if (spa.cls === 'sp-lt') {
-    text = `【過敏型】${spa.desc} ${spa.clinical}`;
-    badges = [{ label:'S＜P 過敏型', cls:'b-adapt' }, { label:'多因子関与', cls:'b-struct' }];
+  } else if (A > 0.25 && S > 0.4 && P < 0.25) {
+    text = '構造的な負荷が見られますが、現在は適応により症状が出ていない状態です（代償性無症状）。将来的なリスクに注意してください。';
+    badges = [{ label:'適応状態', cls:'b-adapt' }, { label:'潜在リスクあり', cls:'b-risk' }];
+  } else if (P > S + 0.2) {
+    text = '症状が構造的変化を上回っています。姿勢以外の要因（内科・神経系・心理的）の関与が考えられます。';
+    badges = [{ label:'構造以外の要因', cls:'b-struct' }];
   } else if (S < 0.25 && P < 0.2) {
-    text = 'ねじれ量・症状ともに低負荷で良好な状態です。この状態の維持を目標にしましょう。';
-    badges = [{ label:'良好', cls:'b-adapt' }, { label:`Phase ${phase}`, cls:'b-struct' }];
+    text = '構造バランスも症状も良好な状態です。この状態を維持することを目標にしましょう。';
+    badges = [{ label:'良好', cls:'b-adapt' }];
+  } else if (S > 0.5) {
+    text = '構造的負荷が高い状態です。症状の有無にかかわらず、施術者への相談を検討してください。';
+    badges = [{ label:'構造的負荷高', cls:'b-risk' }];
   } else {
-    text = `【一致型】${spa.desc} ${spa.clinical}`;
-    badges = [{ label:'S＝P 一致型', cls:'b-adapt' }, { label:`Phase ${phase}`, cls:'b-struct' }];
+    text = '構造スコアと症状スコアがほぼ一致しています。定期的な測定で変化を追いましょう。';
+    badges = [{ label:'経過観察', cls:'b-struct' }];
   }
+
   return { text, badges };
 }
 
 function pctLabel(v) {
   return Math.round(v * 100) + '%';
 }
-function phaseLabel(phase) {
-  return ['Phase 0（安定）','Phase 1（注意）','Phase 2（警戒）','Phase 3（危険）'][phase] || '—';
-}
 function levelLabel(v, key) {
   const labels = {
-    S: v < 0.25 ? '軽微' : v < 0.45 ? '中等度' : v < 0.65 ? '高負荷' : '過負荷',
+    S: v < 0.25 ? '良好' : v < 0.45 ? 'やや不良' : v < 0.65 ? '不良' : '高負荷',
     P: v < 0.15 ? 'なし' : v < 0.35 ? '軽度' : v < 0.60 ? '中等度' : '強度',
-    A: v < 0.15 ? '代償なし' : v < 0.35 ? '軽度代償' : v < 0.60 ? '代償中' : '過剰代償',
+    A: v < 0.15 ? '適応なし' : v < 0.35 ? '軽度代償' : v < 0.60 ? '代償中' : '過剰代償',
     R: v < 0.25 ? '低' : v < 0.45 ? '中低' : v < 0.65 ? '中' : '高',
   };
-  return (labels[key] || '');
+  return (labels[key] || '') ;
 }
 function confLabel(c) {
   return c >= 0.65 ? '高' : c >= 0.40 ? '中' : '低';
@@ -1274,65 +1114,26 @@ function updateHome(r) {
   const histS = st.history.map(h => h.S_raw || 0);
   const variance = calcVariance(histS);
   const conf = r.conf !== undefined ? r.conf : calcConfidence(n, variance);
-  const insight = buildInsight(state.S, state.P, state.A, state.risk, conf, n, state.phase);
+  const insight = buildInsight(state.S, state.P, state.A, state.risk, conf, n);
 
   document.getElementById('home-first').style.display  = 'none';
   document.getElementById('home-result').style.display = 'block';
 
-  // 4スコア（臨床ラベル）
+  // 4スコア
   document.getElementById('h-S').textContent   = pctLabel(state.S);
   document.getElementById('h-S-pct').textContent = levelLabel(state.S, 'S');
   document.getElementById('h-P').textContent   = pctLabel(state.P);
   document.getElementById('h-P-pct').textContent = levelLabel(state.P, 'P');
   document.getElementById('h-A').textContent   = pctLabel(state.A);
   document.getElementById('h-A-pct').textContent = levelLabel(state.A, 'A');
-  document.getElementById('h-risk').textContent = 'Phase ' + state.phase;
-  document.getElementById('h-risk-pct').textContent = phaseLabel(state.phase);
+  document.getElementById('h-risk').textContent = pctLabel(state.risk);
+  document.getElementById('h-risk-pct').textContent = levelLabel(state.risk, 'R') + 'リスク';
 
   // 信頼度
   document.getElementById('h-conf-bar').style.width = (conf * 100) + '%';
   const ctag = document.getElementById('h-conf-tag');
   ctag.textContent = confLabel(conf) + '（測定' + n + '回）';
   ctag.className = 'conf-tag ' + confTagCls(conf);
-
-  // SPA認識パターン
-  const spa = calcSPAPattern(state.S, state.P, state.A);
-  document.getElementById('spa-icon').textContent = spa.icon;
-  const spaTypeEl = document.getElementById('spa-type');
-  spaTypeEl.textContent = spa.type;
-  spaTypeEl.className = 'spa-type ' + spa.cls;
-  document.getElementById('spa-desc').textContent = spa.desc;
-
-  // フェーズバー
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('ph' + i).classList.toggle('on', i <= state.phase);
-  }
-
-  // 未来予測
-  const preds = calcFuturePredictions(state.S, state.P, state.A, state.phase);
-  const predCard = document.getElementById('pred-card');
-  predCard.style.display = 'block';
-  document.getElementById('pred-rows').innerHTML = preds.map(p => {
-    const pct = Math.round(p.prob * 100);
-    const cls = pct >= 70 ? 'pred-hi' : pct >= 45 ? 'pred-mid' : 'pred-lo';
-    return `<div class="pred-row">
-      <div class="pred-prob ${cls}">${pct}%</div>
-      <div class="pred-body">
-        <div class="pred-name">${p.name}</div>
-        <div class="pred-note">${p.note}</div>
-        <span class="pred-horizon">${p.horizon}</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  // ゲージ
-  document.getElementById('gauge-card').style.display = 'block';
-  document.getElementById('gauge-s').style.width = (state.S * 100) + '%';
-  document.getElementById('gauge-s-num').textContent = pctLabel(state.S);
-  document.getElementById('gauge-p').style.width = (state.P * 100) + '%';
-  document.getElementById('gauge-p-num').textContent = pctLabel(state.P);
-  document.getElementById('gauge-a').style.width = (state.A * 100) + '%';
-  document.getElementById('gauge-a-num').textContent = pctLabel(state.A);
 
   // インサイト
   document.getElementById('h-insight').textContent = insight.text;
@@ -1350,7 +1151,7 @@ function updateHome(r) {
   document.getElementById('bar-P').style.width = (state.P * 100) + '%';
   document.getElementById('bar-A').style.width = (state.A * 100) + '%';
 
-  // 変化カード（フェーズ変化含む）
+  // 変化カード
   if (st.history.length >= 2) {
     const prev = st.history[1];
     const prevState = calcBodyState(prev);
@@ -1364,12 +1165,6 @@ function updateHome(r) {
     document.getElementById('d-P-note').textContent = dP.note;
     document.getElementById('d-A').textContent = dA.val; document.getElementById('d-A').style.color = dA.color;
     document.getElementById('d-A-note').textContent = dA.note;
-    // フェーズ変化
-    const phDiff = state.phase - prevState.phase;
-    const phEl = document.getElementById('d-phase');
-    if (phDiff < 0) { phEl.textContent = `Phase ${prevState.phase}→${state.phase} ▼改善`; phEl.style.color = 'var(--green)'; document.getElementById('d-phase-note').textContent = '崩壊フェーズが下がりました'; }
-    else if (phDiff > 0) { phEl.textContent = `Phase ${prevState.phase}→${state.phase} ▲悪化`; phEl.style.color = 'var(--red)'; document.getElementById('d-phase-note').textContent = '崩壊フェーズが上がりました。介入を検討してください。'; }
-    else { phEl.textContent = `Phase ${state.phase} 維持`; phEl.style.color = 'var(--sub)'; document.getElementById('d-phase-note').textContent = '前回と同じフェーズです'; }
   }
 
   // ハブ
@@ -1379,18 +1174,20 @@ function updateHome(r) {
 
   // アラート
   const al = document.getElementById('home-alert');
-  if (spa.cls === 'sp-gt') {
+  if (state.A > 0.25 && state.S > 0.4) {
     al.className = 'al adapt';
-    document.getElementById('alert-title').textContent = '⚠️ 無自覚進行型を検出しました';
-    document.getElementById('alert-text').textContent = spa.desc + ' ' + spa.clinical;
-  } else if (spa.cls === 'sp-lt') {
+    document.getElementById('alert-title').textContent = '🧠 適応状態を検出しました';
+    document.getElementById('alert-text').textContent =
+      `構造スコア ${pctLabel(state.S)} に対して症状スコアは ${pctLabel(state.P)} です。`+
+      `身体が負荷に適応している可能性があります（代償性無症状）。`;
+  } else if (state.risk >= 0.65) {
     al.className = 'al warn';
-    document.getElementById('alert-title').textContent = '🧠 過敏型パターンです';
-    document.getElementById('alert-text').textContent = spa.desc + ' ' + spa.clinical;
+    document.getElementById('alert-title').textContent = '⚠️ 将来リスクが高い状態です';
+    document.getElementById('alert-text').textContent = `推定リスク ${pctLabel(state.risk)}。専門家への相談を検討してください。`;
   } else if (state.S < 0.25 && state.P < 0.15) {
     al.className = 'al ok';
-    document.getElementById('alert-title').textContent = '✅ 良好な状態（Phase 0）';
-    document.getElementById('alert-text').textContent = 'ねじれ量・症状ともに低負荷。この状態の維持を目指しましょう。';
+    document.getElementById('alert-title').textContent = '✅ 良好な状態です';
+    document.getElementById('alert-text').textContent = `構造・症状ともに低負荷。この状態の維持を目指しましょう。`;
   } else {
     al.className = 'al info';
     document.getElementById('alert-title').textContent = 'ℹ️ 状態を推定しました';
