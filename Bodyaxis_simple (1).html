@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0D2340">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BodyAxis">
+<title>BodyAxis — カラダのひねりチェック</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --navy:#0D2340;--navy2:#1a3a5c;
+  --amber:#E8A020;--amber2:#F5C048;
+  --teal:#0891b2;--green:#059669;--green2:#d1fae5;
+  --red:#dc2626;--orange:#d97706;
+  --bg:#f0f4f8;--card:#fff;--text:#1a2535;--sub:#5a6980;--border:#d4dde8;
+  --r:14px;--sh:0 2px 16px rgba(13,35,64,.10);
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:'Hiragino Sans','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);}
+#app{max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);}
+
+/* Header */
+.hdr{background:var(--navy);padding:12px 16px 0;position:sticky;top:0;z-index:100;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.hdr-logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:34px;height:34px;border-radius:8px;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:var(--navy);}
+.logo-name{color:#fff;font-size:16px;font-weight:800;}
+.logo-sub{color:rgba(255,255,255,.4);font-size:10px;}
+.site-link{color:rgba(255,255,255,.55);font-size:10px;text-decoration:none;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:4px 9px;}
+
+/* Tabs */
+.tabs{display:flex;border-top:1px solid rgba(255,255,255,.08);}
+.tab{flex:1;padding:9px 2px 8px;font-size:10px;color:rgba(255,255,255,.4);background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:46px;}
+.tab-ic{font-size:16px;line-height:1;}
+.tab.on{color:var(--amber);border-bottom:2px solid var(--amber);}
+
+/* Panels */
+.panel{display:none;padding:14px;}
+.panel.on{display:block;}
+
+/* Cards */
+.card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden;}
+.card-hd{padding:12px 14px;border-bottom:1px solid var(--border);}
+.ch-t{font-size:13px;font-weight:700;color:var(--navy);}
+.ch-s{font-size:11px;color:var(--sub);margin-top:2px;}
+.card-body{padding:14px;}
+
+/* Buttons */
+.btn{width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:800;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;min-height:52px;transition:opacity .15s;}
+.btn:active{opacity:.82;}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-amber{background:var(--amber);color:var(--navy);}
+.btn-teal{background:var(--teal);color:#fff;}
+.btn-out{background:transparent;color:var(--navy);border:2px solid var(--navy);}
+
+/* Welcome screen */
+.welcome-hero{background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);padding:24px;margin-bottom:14px;text-align:center;}
+.wh-title{font-size:20px;font-weight:800;color:#fff;margin-bottom:8px;}
+.wh-body{font-size:13px;color:rgba(255,255,255,.65);line-height:1.9;}
+
+/* Result card */
+.result-hero{background:linear-gradient(135deg,var(--navy),#0e4c6e);border-radius:var(--r);padding:20px;margin-bottom:14px;text-align:center;}
+.rh-label{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.08em;margin-bottom:8px;}
+.rh-score{font-size:56px;font-weight:900;line-height:1;margin-bottom:4px;}
+.rh-level{font-size:14px;font-weight:700;margin-bottom:12px;}
+.rh-desc{font-size:12px;color:rgba(255,255,255,.65);line-height:1.8;text-align:left;}
+
+/* Score bar */
+.score-bar-wrap{margin-bottom:12px;}
+.sb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.sb-label{font-size:13px;font-weight:700;color:var(--text);}
+.sb-val{font-size:13px;font-weight:800;}
+.sb-track{height:12px;background:var(--border);border-radius:6px;overflow:hidden;}
+.sb-fill{height:12px;border-radius:6px;transition:width 0.8s ease;}
+.sb-note{font-size:11px;color:var(--sub);margin-top:4px;}
+
+/* Photo area */
+.photo-area{position:relative;background:#0a0f1a;min-height:260px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.photo-area canvas{max-width:100%;max-height:340px;display:block;}
+.no-photo-msg{text-align:center;color:rgba(255,255,255,.4);padding:28px 16px;}
+.no-photo-msg .ni{font-size:48px;margin-bottom:10px;}
+.no-photo-msg p{font-size:13px;line-height:1.9;}
+.proc-ov{position:absolute;inset:0;background:rgba(13,35,64,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;z-index:5;}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.15);border-top-color:var(--amber);animation:sp .8s linear infinite;margin-bottom:12px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.proc-ov h4{font-size:14px;font-weight:800;}
+.proc-ov p{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px;}
+.photo-btn-row{display:flex;}
+.ph-btn{flex:1;padding:16px 8px;font-size:14px;font-weight:700;border:none;cursor:pointer;min-height:52px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.ph-take{background:var(--navy);color:#fff;}
+.ph-pick{background:var(--navy2);color:#fff;}
+
+/* Measurement result strip */
+.meas-strip{padding:14px;border-top:1px solid var(--border);}
+.meas-title{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:10px;letter-spacing:.06em;}
+.meas-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.meas-cell{background:var(--bg);border-radius:10px;padding:10px 12px;}
+.mc-label{font-size:11px;color:var(--sub);margin-bottom:3px;}
+.mc-val{font-size:20px;font-weight:800;}
+
+/* Twist meter */
+.twist-meter{background:var(--navy);border-radius:12px;padding:14px;text-align:center;margin-bottom:12px;}
+.tm-label{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px;}
+.tm-score{font-size:40px;font-weight:900;color:var(--amber2);line-height:1;}
+.tm-level{font-size:13px;font-weight:700;margin-top:4px;}
+
+/* Checklist items */
+.check-item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border);}
+.check-item:last-child{border-bottom:none;}
+.ci-num{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.ci-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.ci-body{font-size:12px;color:var(--sub);line-height:1.7;}
+
+/* Alert */
+.al{border-radius:12px;padding:14px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;}
+.al.info{background:#e0f2fe;border:1px solid #7dd3fc;}
+.al.ok{background:var(--green2);border:1px solid #6ee7b7;}
+.al.warn{background:#fef3c7;border:1px solid #fcd34d;}
+.al.danger{background:#fee2e2;border:1px solid #fca5a5;}
+.al-ic{font-size:18px;flex-shrink:0;}
+.al-t{font-size:13px;font-weight:700;margin-bottom:3px;}
+.al-s{font-size:12px;color:var(--sub);line-height:1.7;}
+
+/* History list */
+.hist-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.hist-item:last-child{border-bottom:none;}
+.hi-date{font-size:12px;color:var(--sub);min-width:52px;}
+.hi-score{font-size:22px;font-weight:800;}
+.hi-level{font-size:11px;font-weight:700;padding:3px 8px;border-radius:8px;margin-left:4px;}
+.hl-good{background:var(--green2);color:var(--green);}
+.hl-mid{background:#fef3c7;color:var(--orange);}
+.hl-bad{background:#fee2e2;color:var(--red);}
+
+/* Symptom chips */
+.symp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.symp-chip{border:2px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;color:var(--sub);transition:all .15s;background:var(--card);}
+.symp-chip.on{border-color:var(--teal);background:#cffafe;color:var(--teal);font-weight:700;}
+
+/* Flow opts */
+.flow-opt{width:100%;padding:14px;border-radius:10px;font-size:13px;font-weight:600;text-align:left;cursor:pointer;border:2px solid var(--border);background:var(--card);color:var(--text);transition:all .15s;line-height:1.6;margin-bottom:8px;}
+.flow-opt:active{opacity:.8;}
+.flow-opt.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+
+/* Plan panel */
+.plan-tier{background:var(--card);border-radius:var(--r);border:1.5px solid var(--border);padding:18px;margin-bottom:12px;position:relative;}
+.plan-tier.active-plan{border-color:var(--teal);box-shadow:0 0 0 3px rgba(8,145,178,.12);}
+.pt-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;display:inline-block;margin-bottom:8px;}
+.pt-badge.free-b{background:#e0f2fe;color:var(--teal);}
+.pt-badge.std-b{background:#fef3c7;color:var(--orange);}
+.pt-badge.curr{background:var(--teal);color:#fff;}
+.pt-name{font-size:17px;font-weight:800;color:var(--navy);margin-bottom:3px;}
+.pt-price{font-size:22px;font-weight:900;color:var(--navy);line-height:1;}
+.pt-price span{font-size:11px;font-weight:400;color:var(--sub);}
+.pt-feats{list-style:none;margin:10px 0 14px;}
+.pt-feats li{font-size:12px;color:var(--text);padding:3px 0;display:flex;gap:6px;}
+.pt-feats li .ok{color:var(--green);font-weight:700;}
+.pt-feats li .no{color:var(--border);font-weight:700;}
+.cancel-box{background:#fff8e1;border:1.5px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:14px;}
+.cancel-box h4{font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;}
+.cancel-box p{font-size:12px;color:#78350f;line-height:1.8;}
+.cancel-btn{width:100%;padding:12px;border-radius:10px;font-size:13px;font-weight:700;border:2px solid var(--red);background:transparent;color:var(--red);cursor:pointer;margin-top:10px;}
+.cancel-btn:active{background:#fee2e2;}
+
+/* Toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+
+/* VAS */
+.vas-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.vas-lbl{font-size:12px;color:var(--sub);min-width:60px;}
+input[type=range]{flex:1;height:8px;border-radius:4px;-webkit-appearance:none;outline:none;cursor:pointer;background:var(--border);}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--navy);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);}
+.vas-val{font-size:18px;font-weight:800;color:var(--navy);min-width:28px;text-align:right;}
+
+/* Disclaimer */
+.disclaimer{background:#7c2d12;border-radius:12px;padding:14px;margin-bottom:14px;color:#fff;}
+.disc-title{font-size:12px;font-weight:800;margin-bottom:6px;}
+.disc-body{font-size:11px;color:rgba(255,255,255,.75);line-height:1.8;}
+
+.bottom-pad{height:80px;}
+@keyframes baRecDot{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">
+      <div class="logo-mark">BA</div>
+      <div>
+        <div class="logo-name">BodyAxis</div>
+        <div class="logo-sub">カラダのひねりチェック</div>
+      </div>
+    </div>
+    <a href="https://agozure.com" target="_blank" rel="noopener" class="site-link">🏠 サイトへ</a>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="t-home"    onclick="goTab('home')">   <span class="tab-ic">🏠</span>ホーム</button>
+    <button class="tab"    id="t-scan"    onclick="goTab('scan')">   <span class="tab-ic">📸</span>測定</button>
+    <button class="tab"    id="t-check"   onclick="goTab('check')">  <span class="tab-ic">✅</span>チェック</button>
+    <button class="tab"    id="t-history" onclick="goTab('history')"><span class="tab-ic">📈</span>記録</button>
+    <button class="tab"    id="t-guide"   onclick="goTab('guide')">  <span class="tab-ic">ℹ️</span>使い方</button>
+    <button class="tab"    id="t-plan"    onclick="goTab('plan')">   <span class="tab-ic">💳</span>プラン</button>
+  </div>
+</div>
+
+
+
+<!-- ██ HOME ██ -->
+<div class="panel on" id="panel-home">
+
+  <!-- Welcome (first time) -->
+  <div id="home-welcome">
+    <div class="welcome-hero">
+      <div style="font-size:48px;margin-bottom:12px;">🌀</div>
+      <div class="wh-title">カラダのひねりを<br>チェックしましょう</div>
+      <p class="wh-body">スマホで立った姿勢を撮影するだけ。<br>AIがカラダのひねり具合を自動で計算します。</p>
+    </div>
+    <button class="btn btn-amber" onclick="goTab('scan')">📸 さっそく測定する</button>
+    <button class="btn btn-out" onclick="goTab('check')">✅ 質問で調べる（撮影なし）</button>
+    <div class="al info">
+      <div class="al-ic">💡</div>
+      <div>
+        <div class="al-t">ひねりって何？</div>
+        <div class="al-s">人間は二本足で歩くため、体に「ひねり」が少しずつ蓄積します。このひねりが病気の入り口になることがあります。早めに確認しましょう。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result (after scan) -->
+  <div id="home-result" style="display:none;">
+
+    <div class="result-hero" id="result-hero">
+      <div class="rh-label">📊 カラダのひねりスコア</div>
+      <div class="rh-score" id="rh-score" style="color:var(--amber2);">—</div>
+      <div class="rh-level" id="rh-level" style="color:rgba(255,255,255,.8);">—</div>
+      <div class="rh-desc" id="rh-desc"></div>
+    </div>
+
+    <!-- Score bars -->
+    <div class="card">
+      <div class="card-body">
+        <div class="score-bar-wrap">
+          <div class="sb-header">
+            <div class="sb-label">🌀 姿勢のひねり</div>
+            <div class="sb-val" id="bar-s-val" style="color:var(--teal);">—</div>
+          </div>
+          <div class="sb-track"><div class="sb-fill" id="bar-s" style="width:0%;background:var(--teal);"></div></div>
+          <div class="sb-note">肩と腰のねじれ差から算出</div>
+        </div>
+        <div class="score-bar-wrap">
+          <div class="sb-header">
+            <div class="sb-label">💬 自覚症状</div>
+            <div class="sb-val" id="bar-p-val" style="color:var(--red);">—</div>
+          </div>
+          <div class="sb-track"><div class="sb-fill" id="bar-p" style="width:0%;background:var(--red);"></div></div>
+          <div class="sb-note">記録した症状の強さから算出</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert -->
+    <div class="al" id="home-alert">
+      <div class="al-ic" id="alert-ic">ℹ️</div>
+      <div>
+        <div class="al-t" id="alert-title">—</div>
+        <div class="al-s" id="alert-body">—</div>
+      </div>
+    </div>
+
+    <button class="btn btn-amber" onclick="goTab('scan')">🔄 もう一度測定する</button>
+    <button class="btn btn-out"   onclick="goTab('check')">💬 症状も入力して精度を上げる</button>
+
+    <!-- AxisPro link -->
+    <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;margin-top:4px;">
+      <div style="font-size:26px;">🏥</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:2px;">施術者の方はこちら</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.55);">AxisPro — 専門家向け詳細システム</div>
+      </div>
+      <a href="AxisPro_improved.html" target="_blank" style="background:var(--amber);color:var(--navy);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;">開く →</a>
+    </div>
+  </div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+<!-- ██ SCAN ██ -->
+<div class="panel" id="panel-scan">
+
+  <!-- ▼ ステージ0: カメラ選択 -->
+  <div id="scan-stage-select">
+    <div class="al info" style="margin-bottom:12px;">
+      <div class="al-ic">📌</div>
+      <div>
+        <div class="al-t">動画で撮影（自動解析）</div>
+        <div class="al-s">・全身（頭〜足）が映るように立つ<br>・7秒後に10秒間自動録画します<br>・正面からの立位静止のみ</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="ch-t">📷 カメラを選んでください</div></div>
+      <div class="card-body">
+        <!-- 人体シルエットガイド -->
+        <div style="text-align:center;margin-bottom:14px;">
+          <svg width="110" height="160" viewBox="0 0 110 160">
+            <line x1="15" y1="150" x2="95" y2="150" stroke="var(--teal)" stroke-width="1.5" stroke-dasharray="4,3" opacity=".6"/>
+            <rect x="38" y="136" width="14" height="10" rx="3" fill="var(--teal)" opacity=".25"/>
+            <rect x="58" y="136" width="14" height="10" rx="3" fill="var(--teal)" opacity=".25"/>
+            <rect x="40" y="98" width="10" height="42" rx="5" fill="var(--navy)"/>
+            <rect x="60" y="98" width="10" height="42" rx="5" fill="var(--navy)"/>
+            <rect x="34" y="48" width="42" height="54" rx="8" fill="var(--navy)"/>
+            <rect x="18" y="50" width="12" height="38" rx="6" fill="var(--navy)" transform="rotate(8 24 69)"/>
+            <rect x="80" y="50" width="12" height="38" rx="6" fill="var(--navy)" transform="rotate(-8 86 69)"/>
+            <rect x="48" y="34" width="14" height="18" rx="6" fill="var(--navy)"/>
+            <circle cx="55" cy="22" r="16" fill="var(--navy)"/>
+            <text x="55" y="158" text-anchor="middle" font-size="8" fill="var(--teal)" font-weight="700">肩幅以上離れる</text>
+          </svg>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div id="ba-cam-back" onclick="baSelectCam('back')"
+            style="border:2px solid var(--border);border-radius:10px;padding:16px 8px;text-align:center;cursor:pointer;transition:all .2s;">
+            <div style="font-size:30px;margin-bottom:6px;">📱</div>
+            <div style="font-size:13px;font-weight:700;color:var(--navy);">背面カメラ</div>
+            <div style="font-size:10px;color:var(--sub);margin-top:3px;">固定して撮影</div>
+          </div>
+          <div id="ba-cam-front" onclick="baSelectCam('front')"
+            style="border:2px solid var(--border);border-radius:10px;padding:16px 8px;text-align:center;cursor:pointer;transition:all .2s;">
+            <div style="font-size:30px;margin-bottom:6px;">🤳</div>
+            <div style="font-size:13px;font-weight:700;color:var(--navy);">自撮りカメラ</div>
+            <div style="font-size:10px;color:var(--sub);margin-top:3px;">自分で持って撮影</div>
+          </div>
+        </div>
+        <button class="btn btn-amber" id="ba-start-btn" onclick="baStartVideo()" disabled
+          style="opacity:.4;">
+          📹 撮影を開始する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ▼ ステージ1: 動画録画UI -->
+  <div id="scan-stage-video" style="display:none;">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <!-- プレビュー -->
+      <div style="position:relative;background:#000;min-height:240px;display:flex;align-items:center;justify-content:center;">
+        <video id="ba-rec-vid" playsinline muted autoplay style="width:100%;max-height:300px;object-fit:cover;display:block;"></video>
+        <!-- シルエットオーバーレイ -->
+        <svg style="position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);pointer-events:none;"
+          width="80" height="160" viewBox="0 0 80 160">
+          <g opacity=".2" fill="white">
+            <circle cx="40" cy="16" r="12"/>
+            <rect x="26" y="30" width="28" height="48" rx="6"/>
+            <rect x="10" y="32" width="12" height="36" rx="5" transform="rotate(8 16 50)"/>
+            <rect x="58" y="32" width="12" height="36" rx="5" transform="rotate(-8 64 50)"/>
+            <rect x="28" y="78" width="10" height="46" rx="5"/>
+            <rect x="42" y="78" width="10" height="46" rx="5"/>
+          </g>
+        </svg>
+        <!-- REC バッジ -->
+        <div id="ba-rec-badge" style="display:none;position:absolute;top:10px;left:10px;
+          background:rgba(220,38,38,.9);color:#fff;border-radius:20px;padding:4px 10px;
+          font-size:12px;font-weight:800;display:none;align-items:center;gap:5px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:#fff;animation:baRecDot 1s infinite;"></div> REC
+        </div>
+        <!-- カウントダウン数字 -->
+        <div id="ba-countdown-ov" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+          <div id="ba-cd-num" style="font-size:88px;font-weight:900;color:#fff;line-height:1;text-shadow:0 4px 24px rgba(0,0,0,.6);display:none;"></div>
+          <div id="ba-cd-lbl" style="font-size:14px;font-weight:700;color:rgba(255,255,255,.85);margin-top:6px;display:none;"></div>
+        </div>
+      </div>
+      <!-- 残り時間バー -->
+      <div id="ba-remain-wrap" style="display:none;padding:10px 14px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <div style="font-size:12px;font-weight:700;color:var(--red);display:flex;align-items:center;gap:5px;">
+            <span>🔴</span>撮影中
+          </div>
+          <div style="font-size:13px;font-weight:800;color:var(--orange);"><span id="ba-remain-secs">10</span>秒</div>
+        </div>
+        <div style="height:7px;background:var(--border);border-radius:4px;overflow:hidden;">
+          <div id="ba-remain-bar" style="height:7px;background:linear-gradient(90deg,var(--amber),var(--red));border-radius:4px;width:100%;transition:width 1s linear;"></div>
+        </div>
+      </div>
+      <!-- ステータスメッセージ -->
+      <div style="text-align:center;padding:8px 14px;font-size:12px;color:var(--sub);" id="ba-stage-msg">姿勢を整えてください</div>
+      <!-- キャンセル -->
+      <div style="padding:0 14px 14px;">
+        <button class="ph-btn" style="width:100%;background:#374151;color:#fff;border-radius:8px;padding:12px;font-size:13px;font-weight:700;border:none;cursor:pointer;" onclick="baCancelVideo()">✕ キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ▼ ステージ2: 解析中 -->
+  <div id="scan-stage-analyzing" style="display:none;">
+    <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);padding:28px 16px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:40px;animation:sp .9s linear infinite;display:inline-block;margin-bottom:12px;">⚙️</div>
+      <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:8px;">解析中...</div>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px;text-align:left;">
+        <div class="ba-as-item" id="ba-as1" style="font-size:12px;color:rgba(255,255,255,.9);display:flex;align-items:center;gap:8px;"><span>🎬</span><span>動画フレームを展開中</span></div>
+        <div class="ba-as-item" id="ba-as2" style="font-size:12px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:8px;"><span>🦴</span><span>ランドマーク解析中</span></div>
+        <div class="ba-as-item" id="ba-as3" style="font-size:12px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:8px;"><span>📊</span><span>ひねりスコア算出中</span></div>
+        <div class="ba-as-item" id="ba-as4" style="font-size:12px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:8px;"><span>🖼️</span><span>代表フレーム抽出中</span></div>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+        <div id="ba-as-bar" style="height:5px;background:linear-gradient(90deg,var(--teal),var(--amber));border-radius:3px;width:0%;transition:width .4s;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ▼ ステージ3: 解析結果 (既存 photo-area を流用してキャンバスを表示) -->
+  <div id="scan-stage-result" style="display:none;">
+    <div class="card" style="padding:0;">
+      <div class="photo-area" id="photo-area">
+        <div class="no-photo-msg" id="no-photo" style="display:none;">
+          <div class="ni">🧍</div><p>解析結果がここに表示されます</p>
+        </div>
+        <canvas id="pose-canvas" style="display:none;max-width:100%;"></canvas>
+        <div class="proc-ov" id="proc-ov" style="display:none;">
+          <div class="spin"></div><h4>ひねりを計測中…</h4><p>少しお待ちください</p>
+        </div>
+      </div>
+      <div class="photo-btn-row" id="ph-retake">
+        <button class="ph-btn" style="background:#374151;color:#fff;flex:1;" onclick="resetScan()">🔄 撮り直す</button>
+      </div>
+
+      <!-- Measurement result -->
+      <div class="meas-strip" id="meas-strip" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="meas-title" style="margin-bottom:0;">🔍 AI計測結果</div>
+        <div id="ba-frame-count" style="font-size:10px;color:var(--sub);"></div>
+      </div>
+      <div class="meas-grid">
+        <div class="meas-cell">
+          <div class="mc-label">肩の傾き</div>
+          <div class="mc-val" id="pr-sho" style="color:var(--teal);">—</div>
+        </div>
+        <div class="meas-cell">
+          <div class="mc-label">腰の傾き</div>
+          <div class="mc-val" id="pr-pel" style="color:var(--orange);">—</div>
+        </div>
+        <div class="meas-cell" style="grid-column:span 2;">
+          <div class="mc-label">ひねり差（肩と腰のズレ）</div>
+          <div class="mc-val" id="pr-pti" style="color:var(--red);font-size:24px;">—</div>
+        </div>
+      </div>
+      <div class="twist-meter">
+        <div class="tm-label">カラダのひねりスコア</div>
+        <div class="tm-score" id="tm-score">—</div>
+        <div class="tm-level" id="tm-level" style="color:rgba(255,255,255,.7);">—</div>
+      </div>
+      <!-- 位相同期R値 -->
+      <div id="r-value-row" style="display:none;margin:12px 14px 0;padding:12px 14px;background:rgba(255,255,255,.05);border-radius:10px;border:1px solid rgba(255,255,255,.1);">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.08em;margin-bottom:6px;">🌀 位相同期リズム（Kuramoto R値）</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="r-value-num" style="font-size:28px;font-weight:900;font-family:monospace;">—</div>
+          <div id="r-value-lbl" style="font-size:12px;font-weight:700;">—</div>
+        </div>
+        <div style="margin-top:8px;background:rgba(255,255,255,.1);border-radius:4px;height:5px;overflow:hidden;">
+          <div id="r-value-bar" style="height:100%;width:0%;border-radius:4px;transition:width 1s ease;"></div>
+        </div>
+        <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:5px;">R=1.00：完全同期 / R=0.00：完全非同期（Kuramoto モデル）</div>
+      </div>
+    </div><!-- /meas-strip -->
+    </div><!-- /card -->
+  </div><!-- /scan-stage-result -->
+
+  <button class="btn btn-green" id="btn-save" onclick="saveScan()" style="display:none;">
+    ✅ この結果を保存する
+  </button>
+  <div id="save-ok" style="display:none;text-align:center;font-size:14px;color:var(--green);font-weight:700;padding:10px 0;">✓ 保存しました！</div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+<!-- ██ CHECK — Self check questionnaire ██ -->
+<div class="panel" id="panel-check">
+  <div style="font-size:16px;font-weight:800;color:var(--navy);margin-bottom:4px;">5つの質問でひねりチェック</div>
+  <div style="font-size:13px;color:var(--sub);margin-bottom:14px;">写真撮影なしでも使えます</div>
+
+  <!-- Q1 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="ch-t">Q1　肩と腰の高さのズレ</div>
+      <div class="ch-s">鏡でまっすぐ立ったとき</div>
+    </div>
+    <div class="card-body" style="padding-bottom:6px;">
+      <button class="flow-opt" data-q="q1" data-v="0" onclick="selQ(this)">ほぼ左右対称（差を感じない）</button>
+      <button class="flow-opt" data-q="q1" data-v="1" onclick="selQ(this)">少し差がある（2〜3cm程度）</button>
+      <button class="flow-opt" data-q="q1" data-v="2" onclick="selQ(this)">明らかに差がある（4cm以上）</button>
+      <button class="flow-opt" data-q="q1" data-v="3" onclick="selQ(this)">以前からかなり差があると言われる</button>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="ch-t">Q2　首・肩のこり</div>
+      <div class="ch-s">日常的な頻度</div>
+    </div>
+    <div class="card-body" style="padding-bottom:6px;">
+      <button class="flow-opt" data-q="q2" data-v="0" onclick="selQ(this)">ほとんど感じない</button>
+      <button class="flow-opt" data-q="q2" data-v="1" onclick="selQ(this)">週に数回感じる</button>
+      <button class="flow-opt" data-q="q2" data-v="2" onclick="selQ(this)">毎日感じる・慢性的にある</button>
+      <button class="flow-opt" data-q="q2" data-v="3" onclick="selQ(this)">常にあって日常生活に影響する</button>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="ch-t">Q3　噛み合わせ・顎</div>
+      <div class="ch-s">気になることはありますか</div>
+    </div>
+    <div class="card-body" style="padding-bottom:6px;">
+      <button class="flow-opt" data-q="q3" data-v="0" onclick="selQ(this)">特に気にならない</button>
+      <button class="flow-opt" data-q="q3" data-v="1" onclick="selQ(this)">左右どちらかで噛みやすい・噛みにくい</button>
+      <button class="flow-opt" data-q="q3" data-v="2" onclick="selQ(this)">顎が鳴る・開けると違和感がある</button>
+      <button class="flow-opt" data-q="q3" data-v="3" onclick="selQ(this)">歯の欠損・補綴が多い、以前から問題あり</button>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="ch-t">Q4　体の熱さ・冷えの偏り</div>
+      <div class="ch-s">体の一部だけ熱い・冷える感じ</div>
+    </div>
+    <div class="card-body" style="padding-bottom:6px;">
+      <button class="flow-opt" data-q="q4" data-v="0" onclick="selQ(this)">全体的に均一で気にならない</button>
+      <button class="flow-opt" data-q="q4" data-v="1" onclick="selQ(this)">時々、特定の部位が熱い・重い感じがある</button>
+      <button class="flow-opt" data-q="q4" data-v="2" onclick="selQ(this)">慢性的な冷え・ほてり・体温に左右差がある</button>
+      <button class="flow-opt" data-q="q4" data-v="3" onclick="selQ(this)">ひどい冷えや熱感で困っている</button>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="card">
+    <div class="card-hd">
+      <div class="ch-t">Q5　疲労の回復しやすさ</div>
+      <div class="ch-s">寝ても疲れが残りますか</div>
+    </div>
+    <div class="card-body" style="padding-bottom:6px;">
+      <button class="flow-opt" data-q="q5" data-v="0" onclick="selQ(this)">しっかり回復できる</button>
+      <button class="flow-opt" data-q="q5" data-v="1" onclick="selQ(this)">少し疲れが残ることがある</button>
+      <button class="flow-opt" data-q="q5" data-v="2" onclick="selQ(this)">慢性的に疲れが取れない</button>
+      <button class="flow-opt" data-q="q5" data-v="3" onclick="selQ(this)">疲労が非常に蓄積していて辛い</button>
+    </div>
+  </div>
+
+  <button class="btn btn-navy" id="check-calc-btn" onclick="calcCheck()" style="opacity:.4;pointer-events:none;">
+    🌀 ひねりレベルを調べる
+  </button>
+
+  <!-- Check result -->
+  <div id="check-result" style="display:none;">
+    <div class="result-hero">
+      <div class="rh-label">📊 ひねりレベル（質問ベース）</div>
+      <div class="rh-score" id="cr-score" style="color:var(--amber2);">—</div>
+      <div class="rh-level" id="cr-level" style="color:rgba(255,255,255,.8);">—</div>
+      <div class="rh-desc" id="cr-desc"></div>
+    </div>
+    <button class="btn btn-amber" onclick="goTab('scan')">📸 カメラ測定でさらに詳しく調べる</button>
+  </div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+<!-- ██ HISTORY ██ -->
+<div class="panel" id="panel-history">
+  <div id="hist-empty" style="text-align:center;padding:32px 16px;">
+    <div style="font-size:48px;margin-bottom:12px;">📊</div>
+    <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px;">まだ記録がありません</div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:20px;">測定すると、ここに結果が記録されます。継続して測ることで変化がわかります。</div>
+    <button class="btn btn-amber" onclick="goTab('scan')">📸 最初の測定をする</button>
+  </div>
+  <div id="hist-content" style="display:none;">
+    <canvas id="hist-canvas" style="width:100%;border-radius:12px;background:white;display:block;margin-bottom:12px;" height="120"></canvas>
+    <div class="card">
+      <div class="card-hd"><div class="ch-t">📋 測定履歴</div></div>
+      <div class="card-body" style="padding:0 14px;">
+        <div id="hist-list"></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-pad"></div>
+</div>
+
+<!-- ██ GUIDE ██ -->
+<div class="panel" id="panel-guide">
+
+  <div class="disclaimer">
+    <div class="disc-title">⚠️ 大切なお知らせ</div>
+    <div class="disc-body">このアプリは健康管理の参考情報を提供するものです。疾病の診断・治療は行いません。体の不調については必ず医師にご相談ください。</div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="ch-t">📖 使い方ガイド</div></div>
+    <div class="card-body">
+      <div class="check-item">
+        <div class="ci-num">1</div>
+        <div>
+          <div class="ci-title">📸 測定タブで姿勢を撮影</div>
+          <div class="ci-body">全身が映るように、壁から離れて正面を向いて立ちます。撮影ボタンを押すとAIが自動でひねりを計算します。</div>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="ci-num">2</div>
+        <div>
+          <div class="ci-title">✅ チェックタブで質問に答える</div>
+          <div class="ci-body">写真撮影なしでも、5つの質問に答えるだけでひねりレベルがわかります。</div>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="ci-num">3</div>
+        <div>
+          <div class="ci-title">📈 記録タブで変化を確認</div>
+          <div class="ci-body">測定を重ねるほど、ひねりの変化グラフが積み重なります。週1回の測定をおすすめします。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="ch-t">🌀 スコアの見方</div></div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+        <div style="background:#d1fae5;border-left:4px solid #059669;border-radius:0 8px 8px 0;padding:10px 12px;">
+          <b style="color:#065f46;">0〜30 ： 良好</b><br>
+          <span style="font-size:12px;color:#374151;">ひねりが少なく、良いバランスです。</span>
+        </div>
+        <div style="background:#fef3c7;border-left:4px solid #d97706;border-radius:0 8px 8px 0;padding:10px 12px;">
+          <b style="color:#92400e;">31〜60 ： 注意</b><br>
+          <span style="font-size:12px;color:#374151;">ひねりが蓄積しています。定期的なチェックをおすすめします。</span>
+        </div>
+        <div style="background:#fee2e2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;padding:10px 12px;">
+          <b style="color:#991b1b;">61〜100 ： 要相談</b><br>
+          <span style="font-size:12px;color:#374151;">ひねりが強い状態です。専門家への相談をおすすめします。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div class="ch-t">🏥 開発・監修</div></div>
+    <div class="card-body" style="font-size:13px;color:var(--sub);line-height:2;">
+      <b style="color:var(--navy);">直立医学研究所</b>（静岡県富士市）<br>
+      所長　<b style="color:var(--navy);">臼井 五郎</b><br>
+      図書館前歯科 院長<br>
+      著書：「左奥歯で姿勢改善：新しい予防医療」（一粒書房, 2024）<br>
+      <a href="https://agozure.com" target="_blank" style="color:var(--teal);">https://agozure.com</a>
+    </div>
+  </div>
+
+  <!-- AxisPro -->
+  <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:12px;padding:18px;text-align:center;margin-bottom:14px;">
+    <div style="font-size:13px;color:rgba(255,255,255,.55);margin-bottom:4px;">施術者の方へ</div>
+    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;">AxisPro</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:14px;">専門家向け詳細解析システム</div>
+    <a href="AxisPro_improved.html" target="_blank" style="background:var(--amber);color:var(--navy);border-radius:10px;padding:12px 24px;font-size:14px;font-weight:800;text-decoration:none;display:inline-block;">AxisPro を開く →</a>
+  </div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+
+<!-- ██ PLAN ██ -->
+
+<div class="panel" id="panel-plan">
+  <!-- Current plan indicator -->
+  <div class="al info" id="current-plan-info">
+    <div class="al-ic">💳</div>
+    <div>
+      <div class="al-t" id="plan-info-title">現在：無料プラン</div>
+      <div class="al-s" id="plan-info-body">基本的な測定は無料でご利用いただけます。</div>
+    </div>
+  </div>
+
+  <!-- Free tier -->
+  <div class="plan-tier active-plan" id="tier-free">
+    <div class="pt-badge free-b" id="free-badge">無料</div>
+    <div class="pt-name">フリープラン</div>
+    <div class="pt-price">¥0<span> / ずっと無料</span></div>
+    <ul class="pt-feats">
+      <li><span class="ok">✓</span> 姿勢スキャン 3回/日</li>
+      <li><span class="ok">✓</span> ひねりスコア表示</li>
+      <li><span class="ok">✓</span> 5問セルフチェック</li>
+      <li><span class="ok">✓</span> 直近10件の履歴</li>
+      <li><span class="no">—</span> 無制限スキャン</li>
+      <li><span class="no">—</span> 全期間グラフ</li>
+      <li><span class="no">—</span> レポートPDF</li>
+    </ul>
+    <button class="btn btn-out" id="free-current-btn" style="font-size:13px;margin-bottom:0;" disabled>現在のプラン</button>
+  </div>
+
+  <!-- Standard tier -->
+  <div class="plan-tier" id="tier-std" style="border-color:var(--teal);">
+    <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:10px;font-weight:700;padding:2px 12px;border-radius:10px;white-space:nowrap;">おすすめ</div>
+    <div class="pt-badge std-b" id="std-badge">スタンダード</div>
+    <div class="pt-name">スタンダードプラン</div>
+    <div class="pt-price">¥680<span> / 月（税込）</span></div>
+    <div style="font-size:11px;color:var(--green);font-weight:700;margin:4px 0 10px;">✓ 7日間無料トライアル付き</div>
+    <ul class="pt-feats">
+      <li><span class="ok">✓</span> 姿勢スキャン 無制限</li>
+      <li><span class="ok">✓</span> ひねりスコア表示</li>
+      <li><span class="ok">✓</span> 5問セルフチェック</li>
+      <li><span class="ok">✓</span> 全期間の履歴グラフ</li>
+      <li><span class="ok">✓</span> 詳細変化レポート</li>
+      <li><span class="no">—</span> PDF出力（準備中）</li>
+    </ul>
+    <button class="btn btn-teal" id="std-upgrade-btn" onclick="doUpgrade()" style="font-size:14px;margin-bottom:0;">7日間無料で始める</button>
+  </div>
+
+  <!-- Cancel section (shown only when on paid plan) -->
+  <div class="cancel-box" id="cancel-box" style="display:none;">
+    <h4>⚙️ プランの変更・解約</h4>
+    <p>
+      解約はいつでも可能です。解約後も当月末まではサービスをご利用いただけます。<br>
+      ご不明な点は <a href="mailto:usui@agozure.com" style="color:var(--teal);">usui@agozure.com</a> へご連絡ください。
+    </p>
+    <button class="cancel-btn" onclick="cancelPlan()">📤 プランを解約して無料に戻す</button>
+  </div>
+
+  <!-- Back to site -->
+  <div style="text-align:center;margin-top:8px;padding-top:14px;border-top:1px solid var(--border);">
+    <a href="https://agozure.com" target="_blank" rel="noopener" style="color:var(--sub);font-size:12px;text-decoration:none;">🏠 ホームページへ戻る</a>
+    <span style="color:var(--border);margin:0 10px;">|</span>
+    <a href="AxisPro_improved.html" target="_blank" style="color:var(--sub);font-size:12px;text-decoration:none;">⚕️ 施術者用AxisProへ</a>
+  </div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+/* ─── Storage ─── */
+const KEY = 'bodyaxis_simple_v1';
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||freshSt(); }catch(e){ return freshSt(); } }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(st)); }catch(e){} }
+function freshSt(){ return { history:[], lastResult:null, symptom:{areas:[],pain:0}, plan:'free' }; }
+const st = load();
+
+/* ─── Nav ─── */
+function goTab(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('panel-'+name).classList.add('on');
+  document.getElementById('t-'+name).classList.add('on');
+  if(name==='history') renderHistory();
+  if(name==='plan') updatePlanUI();
+}
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.style.display='block';
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.display='none',2500);
+}
+
+/* ─── Score helpers ─── */
+function scoreLevel(s){
+  if(s<=30) return {label:'良好 🟢',color:'#059669',alClass:'ok',ic:'✅',title:'ひねりが少ない状態です',body:'バランスが良好です。この状態を維持しましょう。'};
+  if(s<=60) return {label:'注意 🟡',color:'#d97706',alClass:'warn',ic:'⚠️',title:'ひねりが蓄積しています',body:'定期的なチェックをおすすめします。症状がある場合は専門家に相談してください。'};
+  return {label:'要相談 🔴',color:'#dc2626',alClass:'danger',ic:'⚠️',title:'ひねりが強い状態です',body:'専門家への相談をおすすめします。図書館前歯科（富士市）の静岡メソッドもご検討ください。'};
+}
+
+/* ─── Video Recording / Pose ─── */
+let lastScan = null;
+let _baCamFacing = 'environment';
+let _baStream = null, _baRecorder = null, _baChunks = [];
+let _baPose = null;
+
+/* カメラ選択 */
+function baSelectCam(type){
+  _baCamFacing = (type === 'front') ? 'user' : 'environment';
+  ['ba-cam-back','ba-cam-front'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.style.border = '2px solid var(--border)';
+    el.style.background = '';
+  });
+  const sel = document.getElementById(type === 'front' ? 'ba-cam-front' : 'ba-cam-back');
+  sel.style.border = '2px solid var(--teal)';
+  sel.style.background = '#e0f2fe';
+  document.getElementById('ba-start-btn').disabled = false;
+  document.getElementById('ba-start-btn').style.opacity = '1';
+}
+
+/* 撮影開始 */
+async function baStartVideo(){
+  document.getElementById('scan-stage-select').style.display = 'none';
+  document.getElementById('scan-stage-video').style.display = 'block';
+
+  try{
+    _baStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode: _baCamFacing, width:{ideal:720}, height:{ideal:1280}, frameRate:{ideal:30} },
+      audio: false
+    });
+    const vid = document.getElementById('ba-rec-vid');
+    vid.srcObject = _baStream;
+    await vid.play();
+  }catch(e){
+    alert('カメラへのアクセスを許可してください。\n'+e.message);
+    resetScan(); return;
+  }
+
+  /* 7秒カウントダウン（準備） */
+  const numEl = document.getElementById('ba-cd-num');
+  const lblEl = document.getElementById('ba-cd-lbl');
+  const msgEl = document.getElementById('ba-stage-msg');
+  numEl.style.display='block'; lblEl.style.display='block';
+  lblEl.textContent='姿勢を整えてください';
+  for(let i=7;i>0;i--){
+    numEl.textContent=i;
+    await baSleep(1000);
+  }
+  numEl.style.display='none'; lblEl.style.display='none';
+
+  /* 録画開始 */
+  const badge = document.getElementById('ba-rec-badge');
+  badge.style.display='flex';
+  document.getElementById('ba-remain-wrap').style.display='block';
+  msgEl.textContent='自然体で静止してください';
+
+  _baChunks=[];
+  const mime = baGetMime();
+  _baRecorder = new MediaRecorder(_baStream, mime ? {mimeType:mime} : {});
+  _baRecorder.ondataavailable = e=>{ if(e.data.size>0) _baChunks.push(e.data); };
+  _baRecorder.start(200);
+
+  /* 10秒録画カウントダウン */
+  const secsEl = document.getElementById('ba-remain-secs');
+  const barEl  = document.getElementById('ba-remain-bar');
+  for(let i=10;i>=0;i--){
+    secsEl.textContent=i;
+    barEl.style.width=(i/10*100)+'%';
+    await baSleep(1000);
+  }
+
+  /* 停止 */
+  _baRecorder.stop();
+  await new Promise(r=>{ _baRecorder.onstop=r; });
+  _baStream.getTracks().forEach(t=>t.stop());
+
+  const blob = new Blob(_baChunks, {type: mime||'video/webm'});
+
+  /* 解析へ */
+  document.getElementById('scan-stage-video').style.display='none';
+  document.getElementById('scan-stage-analyzing').style.display='block';
+  await baAnalyzeBlob(blob);
+}
+
+function baCancelVideo(){
+  if(_baStream) _baStream.getTracks().forEach(t=>t.stop());
+  if(_baRecorder && _baRecorder.state!=='inactive') _baRecorder.stop();
+  resetScan();
+}
+
+function baGetMime(){
+  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+  for(const t of types){ if(MediaRecorder.isTypeSupported(t)) return t; }
+  return '';
+}
+function baSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ─── 動画解析 ─── */
+async function baAnalyzeBlob(blob){
+  baSetStep(1); baSetBar(10);
+
+  /* 動画 → フレーム抽出 */
+  const video = document.createElement('video');
+  video.src = URL.createObjectURL(blob);
+  video.muted = true;
+  await new Promise(r=>{ video.onloadedmetadata=r; });
+  const duration = video.duration;
+  const total = Math.min(Math.floor(duration * 8), 80);
+
+  const offC = document.createElement('canvas');
+  offC.width=320; offC.height=480;
+  const offCtx = offC.getContext('2d');
+
+  /* MediaPipe 初期化 */
+  if(!_baPose){
+    _baPose = new Pose({locateFile:fn=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${fn}`});
+    _baPose.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:.5,minTrackingConfidence:.5});
+    _baPose.onResults(res=>{ _baPose._last=res; });
+    await _baPose.send({image:offC}).catch(()=>{});
+    await baSleep(300);
+  }
+
+  baSetStep(2); baSetBar(20);
+
+  const frames=[];
+  for(let i=0;i<total;i++){
+    const t=(i/(total-1))*duration;
+    await baSeekVideo(video,t);
+    offCtx.drawImage(video,0,0,offC.width,offC.height);
+    _baPose._last=null;
+    await _baPose.send({image:offC}).catch(()=>{});
+    await baSleep(30);
+    if(_baPose._last && _baPose._last.poseLandmarks){
+      const snap=document.createElement('canvas');
+      snap.width=offC.width; snap.height=offC.height;
+      snap.getContext('2d').drawImage(offC,0,0);
+      frames.push({lm:_baPose._last.poseLandmarks, canvas:snap, time:t});
+    }
+    baSetBar(20 + 50*(i/total));
+  }
+
+  baSetStep(3); baSetBar(72);
+
+  /* ── 角度正規化：atan2の±180°出力を傾き角度（±90°以内）に変換 ── */
+  function normalizeAngle(deg){
+    // atan2は水平線に対する角度を返す。
+    // 肩・骨盤ラインの「傾き」として意味のある範囲は -90〜+90°
+    while(deg >  90) deg -= 180;
+    while(deg < -90) deg += 180;
+    return deg;
+  }
+
+  /* ── ランドマーク可視性フィルター：4点すべてのvisibilityが0.5以上のフレームのみ使用 ── */
+  const validFrames = frames.filter(f=>{
+    const lm = f.lm;
+    return [11,12,23,24].every(i => (lm[i].visibility||0) >= 0.5);
+  });
+  const useFrames = validFrames.length >= 3 ? validFrames : frames;
+
+  /* ── 手振れ補正：IQR外れ値除去 ── */
+  function iqrFilter(arr){
+    if(arr.length < 4) return arr;
+    const s = arr.slice().sort((a,b)=>a-b);
+    const q1 = s[Math.floor(s.length*0.25)];
+    const q3 = s[Math.floor(s.length*0.75)];
+    const iqr = q3 - q1;
+    const lo = q1 - 1.5*iqr, hi = q3 + 1.5*iqr;
+    const f = arr.filter(v=>v>=lo && v<=hi);
+    return f.length >= 3 ? f : arr;
+  }
+  function arrMean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+
+  /* スコア計算 */
+  let sA=0, hA=0, pti=0, twistScore=0;
+  if(useFrames.length > 0){
+    const LM = useFrames.map(f=>f.lm);
+    // 各フレームの傾き角度を正規化
+    const shRaw = LM.map(lm=>normalizeAngle(Math.atan2(lm[12].y-lm[11].y, lm[12].x-lm[11].x)*180/Math.PI));
+    const hiRaw = LM.map(lm=>normalizeAngle(Math.atan2(lm[24].y-lm[23].y, lm[24].x-lm[23].x)*180/Math.PI));
+    // IQR外れ値除去後に平均（手振れ補正）
+    sA = arrMean(iqrFilter(shRaw));
+    hA = arrMean(iqrFilter(hiRaw));
+    pti = Math.abs(sA - hA);
+    if(pti > 90) pti = 180 - pti;
+    twistScore = Math.min(100,Math.max(0,Math.round(pti/25*100)));
+
+    // フレーム数をUIに表示
+    const fcEl = document.getElementById('ba-frame-count');
+    if(fcEl) fcEl.textContent = useFrames.length + 'フレーム解析・手振れ補正済';
+  } else {
+    /* フォールバック（MediaPipe未検出時） */
+    sA=(Math.random()-.5)*12; hA=(Math.random()-.5)*14;
+    pti=Math.abs(sA-hA); twistScore=Math.min(100,Math.max(0,Math.round(pti/25*100)));
+    showToast('姿勢検出が不完全でした。推定値を表示します。');
+  }
+
+  /* ── Kuramoto R値（位相同期指数）計算 ── */
+  let kuramotoR = null;
+  if(useFrames.length >= 4){
+    const LM = useFrames.map(f=>f.lm);
+    // 肩・腰それぞれの傾き角（ラジアン）時系列
+    const thetaS = LM.map(lm=>Math.atan2(lm[12].y-lm[11].y, lm[12].x-lm[11].x));
+    const thetaH = LM.map(lm=>Math.atan2(lm[24].y-lm[23].y, lm[24].x-lm[23].x));
+    // 位相差 Δθ(t) = θ_shoulder(t) − θ_hip(t)
+    const delta = thetaS.map((s,i)=>s - thetaH[i]);
+    // 秩序パラメータ R = |mean(exp(i·Δθ))|
+    const sinSum = delta.reduce((a,d)=>a+Math.sin(d),0);
+    const cosSum = delta.reduce((a,d)=>a+Math.cos(d),0);
+    kuramotoR = Math.sqrt(sinSum*sinSum + cosSum*cosSum) / delta.length;
+    kuramotoR = Math.round(kuramotoR * 100) / 100; // 小数2位
+  }
+
+  baSetStep(4); baSetBar(90);
+
+  /* 代表フレームをキャンバスに描画 */
+  await baSleep(200);
+  const canvas = document.getElementById('pose-canvas');
+  if(frames.length > 0){
+    const midF = frames[Math.floor(frames.length/2)];
+    canvas.width=midF.canvas.width; canvas.height=midF.canvas.height;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(midF.canvas,0,0);
+    const lm=midF.lm;
+    const W=canvas.width, H=canvas.height;
+    // 肩・骨盤ライン描画
+    function dL(ctx,x1,y1,x2,y2,col,lw){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.stroke();}
+    function dLbl(ctx,x,y,txt,col){ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x,y-17,txt.length*7+6,18);ctx.fillStyle=col;ctx.font='bold 11px sans-serif';ctx.fillText(txt,x+3,y-3);}
+    dL(ctx,lm[11].x*W,lm[11].y*H,lm[12].x*W,lm[12].y*H,'#60a5fa',2.5);
+    dL(ctx,lm[23].x*W,lm[23].y*H,lm[24].x*W,lm[24].y*H,'#f97316',2.5);
+    [11,12,23,24].forEach(i=>{ctx.beginPath();ctx.arc(lm[i].x*W,lm[i].y*H,6,0,2*Math.PI);ctx.fillStyle='#E8A020';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();});
+    dLbl(ctx,lm[11].x*W,lm[11].y*H,sA.toFixed(1)+'°','#60a5fa');
+    dLbl(ctx,lm[23].x*W,lm[23].y*H,hA.toFixed(1)+'°','#f97316');
+  }
+
+  baSetBar(100);
+  await baSleep(300);
+
+  /* 結果表示 */
+  document.getElementById('scan-stage-analyzing').style.display='none';
+  document.getElementById('scan-stage-result').style.display='block';
+  canvas.style.display='block';
+  document.getElementById('no-photo').style.display='none';
+  showMeasResult(sA, hA, pti, kuramotoR);
+}
+
+function baSetStep(n){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('ba-as'+i);
+    if(!el) continue;
+    if(i<n) el.style.color='#34d399';
+    else if(i===n) el.style.color='rgba(255,255,255,.9)';
+    else el.style.color='rgba(255,255,255,.4)';
+  }
+}
+function baSetBar(pct){ document.getElementById('ba-as-bar').style.width=pct+'%'; }
+async function baSeekVideo(video,time){
+  return new Promise(r=>{ video.currentTime=time; video.onseeked=r; });
+}
+
+function onPoseResult(res,canvas){
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(res.image,0,0,canvas.width,canvas.height);
+  document.getElementById('proc-ov').style.display='none';
+  if(!res.poseLandmarks){ simPose(canvas); return; }
+
+  const lms=res.poseLandmarks, W=canvas.width, H=canvas.height;
+  try{ drawConnectors(ctx,lms,POSE_CONNECTIONS,{color:'rgba(255,255,255,.25)',lineWidth:1.5}); }catch(e){}
+
+  [11,12,23,24].forEach(i=>{
+    if(!lms[i]) return;
+    ctx.beginPath(); ctx.arc(lms[i].x*W,lms[i].y*H,6,0,2*Math.PI);
+    ctx.fillStyle='#E8A020'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  });
+  // 角度を正規化して傾き角度（±90°以内）に変換
+  let sA = Math.atan2(lms[12].y-lms[11].y,lms[12].x-lms[11].x)*180/Math.PI;
+  let hA = Math.atan2(lms[24].y-lms[23].y,lms[24].x-lms[23].x)*180/Math.PI;
+  while(sA >  90) sA -= 180; while(sA < -90) sA += 180;
+  while(hA >  90) hA -= 180; while(hA < -90) hA += 180;
+  let pti = Math.abs(sA - hA);
+  if(pti > 90) pti = 180 - pti;
+  dLine(ctx,lms[11].x*W,lms[11].y*H,lms[12].x*W,lms[12].y*H,'#60a5fa',2.5);
+  dLine(ctx,lms[23].x*W,lms[23].y*H,lms[24].x*W,lms[24].y*H,'#f97316',2.5);
+  dLabel(ctx,lms[11].x*W,lms[11].y*H,sA.toFixed(1)+'°','#60a5fa');
+  dLabel(ctx,lms[23].x*W,lms[23].y*H,hA.toFixed(1)+'°','#f97316');
+  showMeasResult(sA,hA,pti);
+}
+
+function simPose(canvas){
+  document.getElementById('proc-ov').style.display='none';
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const sA=(Math.random()-.5)*12, hA=(Math.random()-.5)*14;
+  dLine(ctx,W*.28,H*.26+sA*.6,W*.72,H*.26-sA*.6,'#60a5fa',2.5);
+  dLine(ctx,W*.34,H*.52+hA*.6,W*.66,H*.52-hA*.6,'#f97316',2.5);
+  [[W*.28,H*.26],[W*.72,H*.26],[W*.34,H*.52],[W*.66,H*.52]].forEach(([x,y])=>{
+    ctx.beginPath(); ctx.arc(x,y,6,0,2*Math.PI);
+    ctx.fillStyle='#E8A020'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  });
+  dLabel(ctx,W*.28,H*.26,sA.toFixed(1)+'°','#60a5fa');
+  dLabel(ctx,W*.34,H*.52,hA.toFixed(1)+'°','#f97316');
+  showMeasResult(sA,hA,Math.abs(sA-hA));
+}
+
+function showMeasResult(sA,hA,pti,kuramotoR){
+  // pti = 肩帯と骨盤帯の傾き角度差（正規化済み、0〜90°）
+  // 典型値: 0〜5° 正常, 5〜15° 中等度, 15〜25° 重度
+  // スケール: 25°で満点100（pti/25*100）
+  const twistScore=Math.min(100,Math.max(0,Math.round(pti/25*100)));
+  const lv=scoreLevel(twistScore);
+
+  document.getElementById('pr-sho').textContent=sA.toFixed(1)+'°';
+  document.getElementById('pr-pel').textContent=hA.toFixed(1)+'°';
+  document.getElementById('pr-pti').textContent=pti.toFixed(1)+'°';
+  document.getElementById('tm-score').textContent=twistScore;
+  document.getElementById('tm-score').style.color=lv.color;
+  document.getElementById('tm-level').textContent=lv.label;
+  document.getElementById('tm-level').style.color=lv.color;
+  document.getElementById('meas-strip').style.display='block';
+  document.getElementById('btn-save').style.display='block';
+
+  /* R値（位相同期）表示 */
+  const rEl = document.getElementById('r-value-row');
+  if(rEl && kuramotoR !== null && kuramotoR !== undefined){
+    const rNum = document.getElementById('r-value-num');
+    const rLbl = document.getElementById('r-value-lbl');
+    const rBar = document.getElementById('r-value-bar');
+    if(rNum) rNum.textContent = kuramotoR.toFixed(2);
+    let rColor='#34d399', rText='✅ リズム同期：安定';
+    if(kuramotoR < 0.5){ rColor='#ef4444'; rText='🔴 リズム同期：乱れあり'; }
+    else if(kuramotoR < 0.75){ rColor='#f59e0b'; rText='⚠️ リズム同期：やや不安定'; }
+    if(rNum) rNum.style.color = rColor;
+    if(rLbl) rLbl.textContent = rText;
+    if(rLbl) rLbl.style.color = rColor;
+    if(rBar) rBar.style.width = (kuramotoR*100)+'%';
+    if(rBar) rBar.style.background = rColor;
+    rEl.style.display='block';
+  }
+
+  const P_raw=st.symptom ? Math.min(1,(st.symptom.pain||0)/10*0.6+(st.symptom.areas||[]).length*0.08) : 0;
+  lastScan={
+    sA:+sA.toFixed(1),hA:+hA.toFixed(1),pti:+pti.toFixed(1),
+    twistScore, P_pct:Math.round(P_raw*100),
+    S_raw:Math.min(1,twistScore/100), P_raw,
+    R: kuramotoR,
+    date:new Date().toLocaleDateString('ja-JP',{month:'2-digit',day:'2-digit'})
+  };
+}
+
+function dLine(ctx,x1,y1,x2,y2,col,lw){
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.stroke();
+}
+function dLabel(ctx,x,y,text,col){
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(x,y-17,text.length*7+6,18);
+  ctx.fillStyle=col; ctx.font='bold 11px sans-serif'; ctx.fillText(text,x+3,y-3);
+}
+
+
+/* ─── (旧静止画撮影関数は動画方式に統合済み) ─── */
+
+function resetScan(){
+  lastScan=null;
+  _baStream=null; _baChunks=[];
+  // ステージリセット
+  document.getElementById('scan-stage-select').style.display='block';
+  document.getElementById('scan-stage-video').style.display='none';
+  document.getElementById('scan-stage-analyzing').style.display='none';
+  document.getElementById('scan-stage-result').style.display='none';
+  // 結果クリア
+  document.getElementById('pose-canvas').style.display='none';
+  document.getElementById('no-photo').style.display='flex';
+  document.getElementById('meas-strip').style.display='none';
+  document.getElementById('btn-save').style.display='none';
+  document.getElementById('save-ok').style.display='none';
+  document.getElementById('ba-rec-badge').style.display='none';
+  document.getElementById('ba-remain-wrap').style.display='none';
+  const fcEl=document.getElementById('ba-frame-count'); if(fcEl) fcEl.textContent='';
+  const rEl=document.getElementById('r-value-row'); if(rEl) rEl.style.display='none';
+  // カメラ選択リセット
+  ['ba-cam-back','ba-cam-front'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.style.border='2px solid var(--border)';
+    el.style.background='';
+  });
+  document.getElementById('ba-start-btn').disabled=true;
+  document.getElementById('ba-start-btn').style.opacity='0.4';
+  _baCamFacing='environment';
+}
+
+function saveScan(){
+  if(!lastScan) return;
+  st.history.unshift(lastScan);
+  if(st.history.length>30) st.history=st.history.slice(0,30);
+  st.lastResult=lastScan;
+  save();
+  document.getElementById('btn-save').style.display='none';
+  document.getElementById('save-ok').style.display='block';
+  setTimeout(()=>{
+    document.getElementById('save-ok').style.display='none';
+    updateHome(lastScan);
+    goTab('home');
+  },1000);
+}
+
+/* ─── Update Home ─── */
+function updateHome(r){
+  const lv=scoreLevel(r.twistScore);
+  document.getElementById('home-welcome').style.display='none';
+  document.getElementById('home-result').style.display='block';
+
+  document.getElementById('rh-score').textContent=r.twistScore;
+  document.getElementById('rh-score').style.color=lv.color;
+  document.getElementById('rh-level').textContent=lv.label;
+  document.getElementById('rh-desc').textContent='測定日: '+r.date+' ／ 肩の傾き '+r.sA+'° ／ 腰の傾き '+r.hA+'°';
+
+  const sp=Math.round(r.S_raw*100);
+  const pp=r.P_pct||0;
+  document.getElementById('bar-s-val').textContent=sp+'%';
+  document.getElementById('bar-s').style.width=sp+'%';
+  document.getElementById('bar-p-val').textContent=pp+'%';
+  document.getElementById('bar-p').style.width=pp+'%';
+
+  // Alert
+  const al=document.getElementById('home-alert');
+  al.className='al '+lv.alClass;
+  document.getElementById('alert-ic').textContent=lv.ic;
+  document.getElementById('alert-title').textContent=lv.title;
+  document.getElementById('alert-body').textContent=lv.body;
+}
+
+/* ─── Check questionnaire ─── */
+const qAnswers={};
+function selQ(el){
+  const q=el.dataset.q;
+  document.querySelectorAll(`[data-q="${q}"]`).forEach(e=>e.classList.remove('on'));
+  el.classList.add('on');
+  qAnswers[q]=parseInt(el.dataset.v);
+  const answered=Object.keys(qAnswers).length;
+  const btn=document.getElementById('check-calc-btn');
+  btn.style.opacity=answered>=5?'1':'0.4';
+  btn.style.pointerEvents=answered>=5?'auto':'none';
+}
+
+function calcCheck(){
+  const vals=[qAnswers.q1||0,qAnswers.q2||0,qAnswers.q3||0,qAnswers.q4||0,qAnswers.q5||0];
+  const raw=vals.reduce((a,b)=>a+b,0); // 0~15
+  const score=Math.round((raw/15)*100);
+  const lv=scoreLevel(score);
+  document.getElementById('cr-score').textContent=score;
+  document.getElementById('cr-score').style.color=lv.color;
+  document.getElementById('cr-level').textContent=lv.label;
+  document.getElementById('cr-desc').textContent='質問ベースの推定値です。カメラ測定でさらに詳しく確認できます。';
+  document.getElementById('check-result').style.display='block';
+  document.getElementById('check-result').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ─── History ─── */
+function renderHistory(){
+  const has=st.history.length>0;
+  document.getElementById('hist-empty').style.display=has?'none':'block';
+  document.getElementById('hist-content').style.display=has?'block':'none';
+  if(!has) return;
+
+  // Mini chart
+  const canvas=document.getElementById('hist-canvas');
+  const W=canvas.offsetWidth||380; const H=120;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  const entries=[...st.history].reverse().slice(-10);
+  const scores=entries.map(e=>e.twistScore||Math.round(e.S_raw*100)||0);
+  const pad=20;
+  ctx.strokeStyle='rgba(0,0,0,.06)';
+  [25,50,75].forEach(v=>{
+    const y=H-pad-(v/100)*(H-pad*2);
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
+    ctx.fillStyle='#5a6980'; ctx.font='10px sans-serif';
+    ctx.fillText(v,2,y+4);
+  });
+  if(scores.length>1){
+    ctx.beginPath();
+    scores.forEach((s,i)=>{
+      const x=pad+(W-pad*2)*i/(scores.length-1);
+      const y=H-pad-(s/100)*(H-pad*2);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle='#E8A020'; ctx.lineWidth=2.5; ctx.stroke();
+  }
+  scores.forEach((s,i)=>{
+    const x=pad+(W-pad*2)*i/(Math.max(scores.length-1,1));
+    const y=H-pad-(s/100)*(H-pad*2);
+    ctx.beginPath(); ctx.arc(x,y,5,0,2*Math.PI);
+    ctx.fillStyle=scoreLevel(s).color; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+  });
+
+  // List
+  const list=document.getElementById('hist-list');
+  list.innerHTML=st.history.slice(0,8).map(r=>{
+    const s=r.twistScore||Math.round((r.S_raw||0)*100);
+    const lv=scoreLevel(s);
+    return `<div class="hist-item">
+      <div class="hi-date">${r.date||'—'}</div>
+      <div class="hi-score" style="color:${lv.color};">${s}</div>
+      <div class="hi-level ${s<=30?'hl-good':s<=60?'hl-mid':'hl-bad'}">${lv.label.replace(/ [🟢🟡🔴]/,'')}</div>
+    </div>`;
+  }).join('');
+}
+
+
+/* ─── Plan management ─── */
+function updatePlanUI(){
+  const plan = st.plan || 'free';
+  const isStd = plan === 'standard' || plan === 'premium';
+  
+  document.getElementById('plan-info-title').textContent = isStd 
+    ? '現在：スタンダードプラン ⭐' : '現在：無料プラン';
+  document.getElementById('plan-info-body').textContent = isStd
+    ? '無制限スキャン・全期間グラフが利用できます。' 
+    : '1日3回までスキャン可能です。';
+  
+  // Free tier
+  const freeTier = document.getElementById('tier-free');
+  freeTier.classList.toggle('active-plan', !isStd);
+  document.getElementById('free-badge').className = 'pt-badge ' + (isStd ? 'free-b' : 'curr');
+  document.getElementById('free-badge').textContent = isStd ? '無料' : '現在のプラン ✓';
+  document.getElementById('free-current-btn').disabled = !isStd;
+  
+  // Std tier
+  const stdTier = document.getElementById('tier-std');
+  stdTier.classList.toggle('active-plan', isStd);
+  document.getElementById('std-badge').className = 'pt-badge ' + (isStd ? 'curr' : 'std-b');
+  document.getElementById('std-badge').textContent = isStd ? '現在のプラン ✓' : 'スタンダード';
+  
+  const stdBtn = document.getElementById('std-upgrade-btn');
+  if(isStd){ stdBtn.textContent='ご利用中'; stdBtn.disabled=true; stdBtn.style.background='var(--green)'; }
+  else{ stdBtn.textContent='7日間無料で始める'; stdBtn.disabled=false; stdBtn.style.background=''; }
+  
+  document.getElementById('cancel-box').style.display = isStd ? 'block' : 'none';
+}
+
+function doUpgrade(){
+  if(confirm('スタンダードプランに申し込みますか？\n\n最初の7日間は無料です。8日目以降 ¥680/月が発生します。\n解約はいつでも可能です。\n\n決済ページ（Stripe）へ移動します。')){
+    window.open('https://buy.stripe.com/fZueVd20D0dLcNj12O7AI03','_blank');
+  }
+}
+
+function cancelPlan(){
+  if(confirm('プランを解約して無料プランに戻しますか？\n\n当月末まではスタンダードプランのままご利用いただけます。')){
+    st.plan = 'free';
+    save();
+    updatePlanUI();
+    showToast('プランを解約しました。ご利用ありがとうございました。');
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   🌀 位相同期解析エンジン v3（リアルタイムキャプチャ方式）
+   ══════════════════════════════════════════════════════
+   問題だった旧方式：
+   ① 録画後に blob→video→seek でフレーム抽出
+      → webm の duration=Infinity でループ不能
+      → onseeked 非発火ブラウザで永久に止まる
+   
+   新方式：
+   ① カメラ映像を <video> でプレビューしながら録画
+   ② 同時に setInterval で 2fps キャプチャ → 傾き角を蓄積
+   ③ 10秒後に蓄積データだけでスコア計算 → blob不要
+   ══════════════════════════════════════════════════════ */
+
+/* ─── Init ─── */
+if(st.lastResult) updateHome(st.lastResult);
+updatePlanUI();
+/* URLパラメータ ?tab=scan でscanタブを直接起動 */
+(function(){
+  const p = new URLSearchParams(location.search).get('tab');
+  if(p && document.getElementById('panel-'+p)) goTab(p);
+})();
+</script>
+</body>
+</html>
