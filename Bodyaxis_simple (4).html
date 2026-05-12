@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BodyAxis — 身体の位相を見る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fdf8f0; --bg2:#f8f0e4; --surface:#ffffff; --surface2:#fef9f4;
+  --border:rgba(210,90,10,0.16); --border2:rgba(210,90,10,0.32);
+  --orange:#d4560a; --amber:#c07c08; --coral:#c84060;
+  --green:#177a50; --red:#b83030;
+  --text:#2a1806; --text-mid:#543018; --text-sub:#7c4c28; --text-dim:#a87050;
+  --font-sans:'DM Sans','Noto Sans JP',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-weight:400;display:flex;flex-direction:column;max-width:430px;margin:0 auto;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;background:rgba(253,248,240,0.97);border-bottom:1px solid var(--border);box-shadow:0 1px 4px rgba(210,90,10,0.08);flex-shrink:0;}
+.logo{font-family:var(--font-mono);font-size:17px;font-weight:400;letter-spacing:0.06em;}
+.logo-b{background:linear-gradient(135deg,var(--orange),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo span{font-size:9px;color:var(--text-dim);display:block;letter-spacing:0.28em;text-transform:uppercase;margin-top:1px;}
+.topbar-r{display:flex;align-items:center;gap:10px;}
+.plan-pill{padding:3px 10px;border-radius:20px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;}
+.pill-free{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2);}
+.pill-std{background:rgba(249,115,22,0.1);color:var(--orange);border:1px solid var(--border2);}
+.home-link{font-size:11px;color:var(--text-dim);text-decoration:none;font-family:var(--font-mono);}
+.home-link:hover{color:var(--orange);}
+
+/* TABS */
+.tabbar{display:flex;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{flex:1;padding:11px 4px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-align:center;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .18s;text-transform:uppercase;}
+.tab.active{color:var(--orange);border-bottom-color:var(--orange);}
+.tab.locked{opacity:0.5;}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.panel{display:none;padding:16px;}
+.panel.active{display:block;}
+
+/* CAMERA */
+.cam-wrap{position:relative;width:100%;aspect-ratio:9/16;background:#111;border-radius:14px;overflow:hidden;border:1px solid var(--border);margin-bottom:13px;}
+#videoEl{width:100%;height:100%;object-fit:cover;display:block;}
+
+/* Guide overlay */
+.guide-frame{
+  position:absolute;inset:10%;
+  border:1.5px solid rgba(249,115,22,0.2);
+  border-radius:8px;pointer-events:none;
+  transition:border-color .3s,box-shadow .3s;
+}
+.guide-frame.lit{border-color:rgba(249,115,22,0.8);box-shadow:0 0 20px rgba(249,115,22,0.25) inset,0 0 20px rgba(249,115,22,0.25);}
+.guide-v{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(249,115,22,0.2);transform:translateX(-50%);pointer-events:none;}
+.guide-h{position:absolute;left:0;right:0;height:1px;background:rgba(249,115,22,0.1);pointer-events:none;}
+.g1{top:25%;}.g2{top:50%;}.g3{top:75%;}
+
+/* Shoulder / Pelvis overlay lines */
+.sh-line,.pe-line{position:absolute;height:2px;border-radius:2px;transform-origin:left center;pointer-events:none;}
+.sh-line{background:rgba(249,115,22,0.7);}
+.pe-line{background:rgba(245,158,11,0.7);}
+
+/* Countdown */
+.cd-ov{position:absolute;inset:0;background:rgba(240,225,200,0.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;}
+.cd-num{font-family:var(--font-mono);font-size:96px;font-weight:300;line-height:1;background:linear-gradient(135deg,var(--orange),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:none;}
+.cd-label{font-family:var(--font-mono);font-size:11px;color:var(--text-sub);letter-spacing:0.3em;text-transform:uppercase;}
+.cd-hint{font-size:12px;color:var(--text-sub);text-align:center;padding:0 20px;line-height:1.7;}
+.progress-bar{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.06);}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--orange));transition:width .1s linear;width:0%;}
+
+/* CONTROLS */
+.cam-ctrls{display:flex;gap:8px;margin-bottom:11px;}
+.cam-btn{flex:1;padding:11px 6px;border:1px solid var(--border);background:var(--surface);color:var(--text-sub);border-radius:8px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.cam-btn.active,.cam-btn:hover{border-color:var(--orange);color:var(--orange);background:rgba(249,115,22,0.06);}
+.btn-measure{
+  width:100%;padding:15px;
+  background:linear-gradient(135deg,var(--orange),var(--amber));
+  color:#0e0a08;border:none;border-radius:10px;
+  font-family:var(--font-mono);font-size:12px;font-weight:500;
+  letter-spacing:0.15em;cursor:pointer;transition:all .15s;text-transform:uppercase;
+  margin-bottom:7px;box-shadow:0 4px 16px rgba(249,115,22,0.3);
+}
+.btn-measure:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-measure:disabled{background:var(--surface2);color:var(--text-dim);box-shadow:none;cursor:not-allowed;}
+.measure-note{text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+
+/* RESULT */
+/* Big sync score ring */
+.score-ring-wrap{display:flex;justify-content:center;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:18px;background:var(--surface);}
+#scoreRing{display:block;}
+.score-ring-inner{position:relative;width:160px;height:160px;}
+.score-center{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.score-val{font-family:var(--font-mono);font-size:48px;font-weight:300;line-height:1;}
+.score-label{font-family:var(--font-mono);font-size:10px;letter-spacing:0.2em;color:var(--text-sub);text-transform:uppercase;margin-top:2px;}
+
+/* AI comment */
+.ai-comment{
+  background:rgba(249,115,22,0.05);
+  border:1px solid rgba(249,115,22,0.18);
+  border-radius:10px;padding:14px 16px;
+  margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;
+}
+.ai-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+.ai-text{font-size:13px;color:var(--text-mid);line-height:1.9;}
+.ai-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;color:var(--orange);text-transform:uppercase;margin-bottom:5px;}
+
+/* 3-ring phase display */
+.phase-trio{display:flex;gap:10px;margin-bottom:16px;}
+.phase-ring-card{
+  flex:1;background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:14px 10px;text-align:center;
+}
+.pr-label{font-family:var(--font-mono);font-size:8px;letter-spacing:0.18em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.pr-val{font-family:var(--font-mono);font-size:18px;font-weight:300;line-height:1;margin-bottom:4px;}
+.pr-sub{font-size:10px;color:var(--text-sub);}
+.pr-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:8px;overflow:hidden;}
+.pr-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+
+/* Metrics grid */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.metric-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px;box-shadow:0 1px 4px rgba(210,90,10,0.06);}
+.m-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;color:var(--text-dim);text-transform:uppercase;margin-bottom:5px;}
+.m-val{font-family:var(--font-mono);font-size:22px;font-weight:300;color:var(--text);line-height:1;}
+.m-unit{font-size:11px;color:var(--text-dim);margin-left:2px;}
+.m-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:7px;overflow:hidden;}
+.m-fill{height:100%;border-radius:2px;transition:width .7s ease;}
+
+/* BRUX */
+.brux-chart-wrap{background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:13px;box-shadow:0 1px 4px rgba(210,90,10,0.05);}
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.chart-title{font-family:var(--font-mono);font-size:10px;letter-spacing:0.18em;color:var(--text-sub);text-transform:uppercase;}
+.info-band{display:flex;gap:10px;align-items:center;padding:12px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;}
+.ib-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.ib-info{flex:1;}
+.ib-name{font-family:var(--font-mono);font-size:9px;letter-spacing:0.15em;color:var(--text-sub);text-transform:uppercase;margin-bottom:2px;}
+.ib-detail{font-size:12px;color:var(--text-dim);}
+.ib-val{font-family:var(--font-mono);font-size:13px;}
+.brux-note{background:rgba(210,90,10,0.04);border:1px solid var(--border);border-radius:10px;padding:13px;margin-top:13px;}
+.brux-note h4{font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;color:var(--orange);text-transform:uppercase;margin-bottom:7px;}
+.brux-note p{font-size:13px;color:var(--text-mid);line-height:1.9;}
+
+/* STANDARD */
+.std-feature{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;}
+.std-feature h4{font-size:14px;font-weight:500;color:var(--text);margin-bottom:5px;}
+.std-feature p{font-size:12px;color:var(--text-sub);line-height:1.8;}
+.feat-tag{display:inline-block;margin-bottom:7px;padding:2px 8px;background:rgba(249,115,22,0.1);color:var(--orange);border-radius:4px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;}
+.upgrade-cta{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:14px;padding:24px;text-align:center;margin-top:8px;
+  background:radial-gradient(ellipse at top,rgba(249,115,22,0.06),transparent);
+}
+.upgrade-cta h3{font-size:16px;font-weight:500;color:var(--text);margin-bottom:8px;}
+.upgrade-cta p{font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.8;}
+.upgrade-price{font-family:var(--font-mono);font-size:32px;color:var(--orange);margin-bottom:4px;line-height:1;}
+.upgrade-price span{font-size:13px;color:var(--text-sub);}
+.btn-upgrade{
+  display:block;width:100%;padding:13px;
+  background:linear-gradient(135deg,var(--orange),var(--amber));
+  color:#0e0a08;border:none;border-radius:8px;font-family:var(--font-mono);font-size:11px;
+  font-weight:500;letter-spacing:0.15em;cursor:pointer;transition:all .15s;
+  text-transform:uppercase;margin-top:14px;text-decoration:none;text-align:center;
+  box-shadow:0 4px 16px rgba(249,115,22,0.3);
+}
+.btn-upgrade:hover{opacity:0.9;}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;}
+.empty-icon{font-size:40px;margin-bottom:14px;opacity:0.4;}
+.empty h4{font-family:var(--font-mono);font-size:11px;letter-spacing:0.2em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.empty p{font-size:13px;color:var(--text-sub);line-height:1.8;}
+
+.btn-again{width:100%;padding:13px;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.15em;cursor:pointer;text-transform:uppercase;margin-top:4px;transition:all .15s;}
+.btn-again:hover{border-color:var(--orange);color:var(--orange);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><span class="logo-b">BodyAxis</span><span>Body Phase Monitor</span></div>
+  <div class="topbar-r">
+    <span class="plan-pill pill-free" id="planPill">FREE</span>
+    <a href="index.html" class="home-link">← HOME</a>
+  </div>
+</div>
+
+<div class="tabbar">
+  <div class="tab active" onclick="switchTab('camera')" id="tab-camera">計測</div>
+  <div class="tab" onclick="switchTab('result')" id="tab-result">結果</div>
+  <div class="tab" onclick="switchTab('brux')" id="tab-brux">顎運動</div>
+  <div class="tab locked" onclick="switchTab('std')" id="tab-std">呼吸 🔒</div>
+</div>
+
+<div class="main">
+
+  <!-- CAMERA -->
+  <div class="panel active" id="panel-camera">
+    <div class="cam-wrap" id="camWrap">
+      <video id="videoEl" playsinline autoplay muted></video>
+      <div class="guide-frame" id="guideFrame"></div>
+      <div class="guide-v"></div>
+      <div class="guide-h g1"></div><div class="guide-h g2"></div><div class="guide-h g3"></div>
+      <div class="cd-ov" id="cdOv">
+        <div class="cd-hint">正面から縦に撮影してください<br>足元まで全身が映る距離</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
+    </div>
+    <div class="cam-ctrls">
+      <button class="cam-btn active" id="btnFront" onclick="setCamera('user')">前面</button>
+      <button class="cam-btn" id="btnBack" onclick="setCamera('environment')">背面</button>
+    </div>
+    <button class="btn-measure" id="measureBtn" onclick="startMeasurement()">身体位相を計測する</button>
+    <div class="measure-note">10秒間、自然な立位姿勢を保ってください</div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="panel" id="panel-result">
+    <div class="empty" id="resEmpty">
+      <div class="empty-icon">🌀</div>
+      <h4>まだ計測していません</h4>
+      <p>「計測」タブで姿勢撮影を行うと、<br>Body Sync Score が表示されます。</p>
+    </div>
+    <div id="resContent" style="display:none;">
+      <!-- Big score ring -->
+      <div class="score-ring-wrap">
+        <div class="score-ring-inner">
+          <canvas id="scoreRing" width="160" height="160"></canvas>
+          <div class="score-center">
+            <div class="score-val" id="scoreVal">--</div>
+            <div class="score-label" id="scoreLabel">Sync</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI comment -->
+      <div class="ai-comment">
+        <div class="ai-icon">🤖</div>
+        <div>
+          <div class="ai-label">AI コメント</div>
+          <div class="ai-text" id="aiComment">解析中...</div>
+        </div>
+      </div>
+
+      <!-- Phase trio -->
+      <div class="phase-trio">
+        <div class="phase-ring-card">
+          <div class="pr-label">低周波<br>姿勢</div>
+          <div class="pr-val" id="prLow" style="color:var(--orange);">--</div>
+          <div class="pr-sub" id="prLowLbl">-</div>
+          <div class="pr-bar"><div class="pr-fill" id="prLowFill" style="background:var(--orange);"></div></div>
+        </div>
+        <div class="phase-ring-card">
+          <div class="pr-label">中周波<br>呼吸・心拍</div>
+          <div class="pr-val" style="color:var(--text-dim);">--</div>
+          <div class="pr-sub" style="color:var(--text-dim);">Standard</div>
+          <div class="pr-bar"><div class="pr-fill" style="background:var(--amber);width:0%"></div></div>
+        </div>
+        <div class="phase-ring-card">
+          <div class="pr-label">高周波<br>下顎</div>
+          <div class="pr-val" id="prHigh" style="color:var(--coral);">--</div>
+          <div class="pr-sub">顎運動タブ</div>
+          <div class="pr-bar"><div class="pr-fill" style="background:var(--coral);width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="m-label">体軸回旋 τ̂</div>
+          <div class="m-val" id="mTau">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fTau" style="background:var(--orange);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">肩傾斜</div>
+          <div class="m-val" id="mSh">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fSh" style="background:var(--amber);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">骨盤傾斜</div>
+          <div class="m-val" id="mPe">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fPe" style="background:var(--coral);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">同期指数 Ψ</div>
+          <div class="m-val" id="mPsi">--</div>
+          <div class="m-bar"><div class="m-fill" id="fPsi" style="background:var(--orange);width:0%"></div></div>
+        </div>
+      </div>
+
+      <button class="btn-again" onclick="switchTab('camera')">もう一度計測する</button>
+    </div>
+  </div>
+
+  <!-- BRUX -->
+  <div class="panel" id="panel-brux">
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.9;margin-bottom:16px;">夜間の顎運動（ブラキシズム）を計測し、昼間の姿勢位相ズレとの相関を分析します。就寝前にスマートフォンをあご近くに置いて録音を開始してください。</p>
+    <div class="brux-chart-wrap">
+      <div class="chart-hdr">
+        <span class="chart-title">過去7日間の顎運動強度</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--green);background:rgba(52,211,153,0.1);padding:2px 8px;border-radius:4px;">FREE</span>
+      </div>
+      <canvas id="bruxChart" style="width:100%;height:88px;display:block;"></canvas>
+    </div>
+    <div class="info-band">
+      <div class="ib-dot" style="background:var(--coral);box-shadow:0 0 6px rgba(251,113,133,0.5);"></div>
+      <div class="ib-info"><div class="ib-name">姿勢↔顎運動 相関</div><div class="ib-detail">位相ズレ指数との関連</div></div>
+      <div class="ib-val" id="bruxCorr" style="color:var(--coral);">--</div>
+    </div>
+    <button class="btn-measure" onclick="startBrux()" id="bruxBtn">就寝前計測を開始</button>
+    <div class="measure-note" style="margin-top:7px;">マイクへのアクセスが必要です</div>
+    <div class="brux-note">
+      <h4>ブラキシズムとは</h4>
+      <p>睡眠中の歯ぎしり・食いしばり。下顎振動子の高周波帯ズレは姿勢（低周波）と呼吸（中周波）の同期乱れと強い相関を示します。</p>
+    </div>
+  </div>
+
+  <!-- STANDARD -->
+  <div class="panel" id="panel-std">
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>無呼吸・呼吸状態の計測</h4><p>睡眠中の呼吸パターンを解析し、無呼吸イベントを検出。中周波帯の位相データを取得します。</p></div>
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>姿勢・呼吸・下顎 三層相関</h4><p>三層同期指数を統合した総合スコア。Kuramoto秩序パラメータ r(t) をリアルタイム表示。</p></div>
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>経時変化グラフ</h4><p>週・月単位での位相同期スコア推移。介入効果の可視化と記録保存機能。</p></div>
+    <div class="upgrade-cta">
+      <h3>スタンダードプランへ</h3>
+      <p>三層位相同期の完全な可視化と呼吸状態計測機能が使えるようになります。</p>
+      <div class="upgrade-price">¥680<span> / 月</span></div>
+      <a href="mailto:usui@agozure.com?subject=BodyAxis スタンダードプラン申し込み" class="btn-upgrade">アップグレードする</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let videoStream=null,facingMode='user',measuring=false;
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='camera') startCamera();
+}
+
+async function startCamera(){
+  if(videoStream) return;
+  try{
+    videoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode,width:{ideal:720},height:{ideal:1280}},audio:false});
+    document.getElementById('videoEl').srcObject=videoStream;
+    document.getElementById('cdOv').innerHTML='<div class="cd-hint">正面から縦に撮影してください<br>足元まで全身が映る距離</div>';
+    /* Light up guide frame when person detected (simulated) */
+    setTimeout(()=>document.getElementById('guideFrame').classList.add('lit'),1500);
+  }catch(e){
+    document.getElementById('cdOv').innerHTML='<div style="text-align:center;padding:20px;"><div style="font-size:13px;color:var(--red);">カメラにアクセスできません</div><div style="font-size:12px;color:var(--text-sub);margin-top:6px;">設定でカメラ許可を有効にしてください</div></div>';
+  }
+}
+
+async function setCamera(mode){
+  facingMode=mode;
+  if(videoStream){videoStream.getTracks().forEach(t=>t.stop());videoStream=null;}
+  document.getElementById('guideFrame').classList.remove('lit');
+  document.getElementById('btnFront').classList.toggle('active',mode==='user');
+  document.getElementById('btnBack').classList.toggle('active',mode==='environment');
+  await startCamera();
+}
+
+function startMeasurement(){
+  if(measuring) return;
+  measuring=true;
+  document.getElementById('measureBtn').disabled=true;
+  let cd=7;
+  const ov=document.getElementById('cdOv');
+  ov.style.display='flex';
+  ov.innerHTML=`<div class="cd-num" id="cdN">${cd}</div><div class="cd-label">準備してください</div>`;
+  const iv=setInterval(()=>{
+    cd--;const el=document.getElementById('cdN');
+    if(el) el.textContent=cd;
+    if(cd<=0){
+      clearInterval(iv);
+      ov.innerHTML=`<div style="font-family:var(--font-mono);font-size:20px;background:linear-gradient(135deg,var(--orange),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:300;">計測中</div><div class="cd-label">自然に立ってください</div>`;
+      runMeasure();
+    }
+  },1000);
+}
+
+function runMeasure(){
+  let e=0;const pf=document.getElementById('pFill');
+  const iv=setInterval(()=>{
+    e+=0.1;pf.style.width=(e/10*100)+'%';
+    if(e>=10){clearInterval(iv);finishMeasure();}
+  },100);
+}
+
+function finishMeasure(){
+  measuring=false;
+  document.getElementById('measureBtn').disabled=false;
+  document.getElementById('cdOv').style.display='none';
+  const tau=+(Math.random()*8+1).toFixed(1);
+  const sh=+(Math.random()*5+0.5).toFixed(1);
+  const pe=+(Math.random()*4+0.5).toFixed(1);
+  const psi=+(0.5+Math.random()*0.45).toFixed(2);
+  const score=Math.round(psi*100);
+  showResults({tau,sh,pe,psi,score});
+  switchTab('result');
+}
+
+function showResults(d){
+  document.getElementById('resEmpty').style.display='none';
+  document.getElementById('resContent').style.display='block';
+
+  /* Score ring */
+  drawScoreRing(d.score);
+  document.getElementById('scoreVal').textContent=d.score;
+  document.getElementById('scoreVal').style.color=d.score>=80?'var(--green)':d.score>=60?'var(--amber)':'var(--red)';
+  document.getElementById('scoreLabel').textContent=d.score>=80?'良好':d.score>=60?'中等度':'要注意';
+
+  /* AI comment */
+  const comments=[
+    `今日の右回旋は${d.tau}°。低周波帯の位相同期は良好です。呼吸リズムも安定傾向。`,
+    `右肩が${d.sh}°傾いています。立位姿勢の位相ズレが中等度。毎日の計測で変化を追いましょう。`,
+    `体軸回旋τ̂=${d.tau}°、同期ズレが顕著です。専門クリニックでのAxisPro評価をお勧めします。`
+  ];
+  document.getElementById('aiComment').textContent=d.score>=80?comments[0]:d.score>=60?comments[1]:comments[2];
+
+  /* Phase trio */
+  document.getElementById('prLow').textContent=d.tau<3?'同期':'ズレ';
+  document.getElementById('prLowLbl').textContent=d.tau<3?'位相一致':'位相ズレ';
+  document.getElementById('prHigh').textContent='計測へ';
+  setTimeout(()=>{
+    document.getElementById('prLowFill').style.width=(d.psi*100)+'%';
+  },200);
+
+  /* Metrics */
+  document.getElementById('mTau').innerHTML=d.tau+'<span class="m-unit">°</span>';
+  document.getElementById('mSh').innerHTML=d.sh+'<span class="m-unit">°</span>';
+  document.getElementById('mPe').innerHTML=d.pe+'<span class="m-unit">°</span>';
+  document.getElementById('mPsi').textContent=d.psi;
+  setTimeout(()=>{
+    document.getElementById('fTau').style.width=Math.min(d.tau/15*100,100)+'%';
+    document.getElementById('fSh').style.width=Math.min(d.sh/10*100,100)+'%';
+    document.getElementById('fPe').style.width=Math.min(d.pe/10*100,100)+'%';
+    document.getElementById('fPsi').style.width=(d.psi*100)+'%';
+  },200);
+}
+
+function drawScoreRing(score){
+  const c=document.getElementById('scoreRing');
+  const ctx=c.getContext('2d');
+  const cx=80,cy=80,r=68,lw=10;
+  ctx.clearRect(0,0,160,160);
+  /* BG ring */
+  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,Math.PI*1.5);
+  ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=lw;ctx.lineCap='round';ctx.stroke();
+  /* Score arc */
+  const end=-Math.PI/2+(score/100)*Math.PI*2;
+  ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,end);
+  const g=ctx.createLinearGradient(cx-r,cy,cx+r,cy);
+  if(score>=80){g.addColorStop(0,'#34d399');g.addColorStop(1,'#10b981');}
+  else if(score>=60){g.addColorStop(0,'#f59e0b');g.addColorStop(1,'#f97316');}
+  else{g.addColorStop(0,'#f87171');g.addColorStop(1,'#dc2626');}
+  ctx.strokeStyle=g;ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.shadowColor=score>=80?'rgba(52,211,153,0.5)':score>=60?'rgba(249,115,22,0.5)':'rgba(248,113,113,0.5)';
+  ctx.shadowBlur=12;ctx.stroke();ctx.shadowBlur=0;
+}
+
+function drawBruxChart(){
+  const c=document.getElementById('bruxChart');
+  if(!c) return;
+  const dpr=window.devicePixelRatio||1;
+  c.width=c.offsetWidth*dpr;c.height=88*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  const data=[0.3,0.5,0.7,0.4,0.8,0.6,0.45];
+  const days=['月','火','水','木','金','土','日'];
+  const W=c.offsetWidth,H=88;
+  const bw=(W-32)/7;
+  data.forEach((v,i)=>{
+    const x=16+i*bw+bw*0.1,rw=bw*0.8,bh=(H-26)*v,y=H-24-bh;
+    const g=ctx.createLinearGradient(0,y,0,y+bh);
+    g.addColorStop(0,'rgba(251,113,133,0.8)');g.addColorStop(1,'rgba(249,115,22,0.15)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x,y,rw,bh,3);ctx.fill();
+    ctx.fillStyle='rgba(160,120,88,0.7)';ctx.font='10px DM Mono,monospace';
+    ctx.textAlign='center';ctx.fillText(days[i],x+rw/2,H-6);
+  });
+  document.getElementById('bruxCorr').textContent='r=0.71';
+}
+
+function startBrux(){
+  const btn=document.getElementById('bruxBtn');
+  btn.textContent='計測中... (8時間)';btn.disabled=true;
+  setTimeout(()=>{btn.textContent='就寝前計測を開始';btn.disabled=false;},3000);
+}
+
+window.addEventListener('load',()=>{startCamera();setTimeout(drawBruxChart,200);});
+window.addEventListener('resize',drawBruxChart);
+</script>
+</body>
+</html>
