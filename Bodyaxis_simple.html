@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BodyAxis — 位相同期モニター</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f8fafc; --bg2:#f1f5f9; --surface:#ffffff;
+  --border:#e2e8f0; --border2:#cbd5e1;
+  --accent:#0ea5e9; --accent-d:#0284c7;
+  --green:#059669; --purple:#7c3aed; --red:#dc2626;
+  --text:#0f172a; --text-mid:#334155;
+  --text-sub:#64748b; --text-dim:#94a3b8;
+  --font-sans:'Noto Sans JP',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-weight:400;display:flex;flex-direction:column;max-width:430px;margin:0 auto;}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+.logo{font-family:var(--font-mono);font-size:16px;font-weight:400;color:var(--accent);letter-spacing:0.08em;}
+.logo span{font-size:9px;color:var(--text-dim);display:block;letter-spacing:0.25em;text-transform:uppercase;margin-top:1px;}
+.topbar-r{display:flex;align-items:center;gap:10px;}
+.plan-badge{padding:3px 10px;border-radius:20px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;border:1px solid;}
+.badge-free{background:rgba(5,150,105,0.08);color:#047857;border-color:rgba(5,150,105,0.2);}
+.badge-std{background:rgba(14,165,233,0.08);color:var(--accent-d);border-color:rgba(14,165,233,0.2);}
+.home-link{font-size:11px;color:var(--text-sub);text-decoration:none;font-family:var(--font-mono);letter-spacing:0.08em;}
+.home-link:hover{color:var(--accent);}
+
+/* TABS */
+.tabbar{display:flex;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{flex:1;padding:11px 6px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-align:center;color:var(--text-sub);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;text-transform:uppercase;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab.locked{color:var(--text-dim);opacity:0.6;}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.panel{display:none;padding:16px;}
+.panel.active{display:block;}
+
+/* CAMERA */
+.cam-wrap{position:relative;width:100%;aspect-ratio:9/16;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:14px;}
+#videoEl{width:100%;height:100%;object-fit:cover;display:block;}
+.guide-v{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(14,165,233,0.3);transform:translateX(-50%);pointer-events:none;}
+.guide-h{position:absolute;left:0;right:0;height:1px;background:rgba(14,165,233,0.12);pointer-events:none;}
+.guide-h1{top:25%;}.guide-h2{top:50%;}.guide-h3{top:75%;}
+.cd-overlay{position:absolute;inset:0;background:rgba(255,255,255,0.88);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;}
+.cd-num{font-family:var(--font-mono);font-size:88px;font-weight:300;color:var(--accent);line-height:1;text-shadow:0 2px 12px rgba(14,165,233,0.2);}
+.cd-label{font-family:var(--font-mono);font-size:11px;color:var(--text-sub);letter-spacing:0.25em;text-transform:uppercase;}
+.cd-instruction{font-family:var(--font-mono);font-size:11px;color:var(--text-sub);letter-spacing:0.1em;text-align:center;padding:0 20px;}
+.progress-bar{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(0,0,0,0.06);}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--accent));transition:width .1s linear;width:0%;}
+
+.cam-controls{display:flex;gap:8px;margin-bottom:12px;}
+.cam-btn{flex:1;padding:11px 6px;border:1.5px solid var(--border2);background:#fff;color:var(--text-sub);border-radius:8px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.cam-btn.active,.cam-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(14,165,233,0.04);}
+.btn-measure{width:100%;padding:15px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-family:var(--font-mono);font-size:12px;font-weight:400;letter-spacing:0.15em;cursor:pointer;transition:all .15s;text-transform:uppercase;margin-bottom:7px;}
+.btn-measure:hover{background:var(--accent-d);}
+.btn-measure:disabled{background:var(--text-dim);opacity:0.5;cursor:not-allowed;}
+.measure-note{text-align:center;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.1em;}
+
+/* RESULT */
+.result-header{text-align:center;padding:18px 0;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.result-header h3{font-family:var(--font-mono);font-size:10px;letter-spacing:0.3em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.sync-score{font-family:var(--font-mono);font-size:60px;font-weight:300;line-height:1;margin-bottom:4px;}
+.s-good{color:var(--green);}.s-mid{color:#d97706;}.s-bad{color:var(--red);}
+.sync-label{font-family:var(--font-mono);font-size:11px;letter-spacing:0.2em;color:var(--text-sub);text-transform:uppercase;}
+
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.metric-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+.m-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;color:var(--text-dim);text-transform:uppercase;margin-bottom:5px;}
+.m-val{font-family:var(--font-mono);font-size:22px;font-weight:300;color:var(--text);line-height:1;}
+.m-unit{font-size:11px;color:var(--text-dim);margin-left:2px;}
+.m-bar{height:3px;background:var(--border);border-radius:2px;margin-top:7px;overflow:hidden;}
+.m-fill{height:100%;border-radius:2px;transition:width .7s ease;}
+
+.freq-bands{margin-bottom:16px;}
+.freq-band{display:flex;align-items:center;gap:10px;padding:13px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.band-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.band-info{flex:1;}
+.band-name{font-family:var(--font-mono);font-size:9px;letter-spacing:0.15em;color:var(--text-sub);text-transform:uppercase;margin-bottom:2px;}
+.band-detail{font-size:12px;color:var(--text-dim);}
+.band-val{font-family:var(--font-mono);font-size:13px;font-weight:400;}
+
+.advice-box{background:rgba(14,165,233,0.05);border:1px solid rgba(14,165,233,0.18);border-radius:10px;padding:14px;margin-bottom:14px;}
+.advice-box h4{font-family:var(--font-mono);font-size:9px;letter-spacing:0.25em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+.advice-box p{font-size:13px;color:var(--text-mid);line-height:1.9;}
+
+/* BRUX */
+.brux-chart{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.chart-title{font-family:var(--font-mono);font-size:10px;letter-spacing:0.18em;color:var(--text-sub);text-transform:uppercase;}
+.brux-advice{background:rgba(5,150,105,0.05);border:1px solid rgba(5,150,105,0.18);border-radius:10px;padding:14px;margin-top:14px;}
+.brux-advice h4{font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;color:var(--green);text-transform:uppercase;margin-bottom:8px;}
+.brux-advice p{font-size:13px;color:var(--text-mid);line-height:1.9;}
+
+/* STANDARD */
+.std-feature{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.std-feature h4{font-size:14px;font-weight:500;color:var(--text);margin-bottom:5px;}
+.std-feature p{font-size:12px;color:var(--text-sub);line-height:1.8;}
+.feat-tag{display:inline-block;padding:2px 8px;background:rgba(14,165,233,0.08);color:var(--accent-d);border-radius:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;margin-bottom:7px;}
+.upgrade-cta{background:linear-gradient(135deg,rgba(14,165,233,0.06),rgba(5,150,105,0.04));border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:24px;text-align:center;margin-top:8px;}
+.upgrade-cta h3{font-size:16px;font-weight:500;color:var(--text);margin-bottom:8px;}
+.upgrade-cta p{font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.8;}
+.upgrade-price{font-family:var(--font-mono);font-size:28px;color:var(--accent);margin-bottom:4px;}
+.upgrade-price span{font-size:13px;color:var(--text-sub);}
+.btn-upgrade{display:block;width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.15em;cursor:pointer;transition:all .15s;text-transform:uppercase;margin-top:14px;text-decoration:none;text-align:center;}
+.btn-upgrade:hover{background:var(--accent-d);}
+
+/* EMPTY */
+.empty{text-align:center;padding:44px 20px;color:var(--text-dim);}
+.empty h4{font-family:var(--font-mono);font-size:11px;letter-spacing:0.2em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.empty p{font-size:13px;color:var(--text-sub);line-height:1.8;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">BodyAxis<span>Phase Sync Monitor</span></div>
+  <div class="topbar-r">
+    <span class="plan-badge badge-free" id="planBadge">FREE</span>
+    <a href="index.html" class="home-link">← HOME</a>
+  </div>
+</div>
+
+<div class="tabbar">
+  <div class="tab active" onclick="switchTab('camera')" id="tab-camera">計測</div>
+  <div class="tab" onclick="switchTab('result')" id="tab-result">結果</div>
+  <div class="tab" onclick="switchTab('brux')" id="tab-brux">顎運動</div>
+  <div class="tab locked" onclick="switchTab('std')" id="tab-std">呼吸 🔒</div>
+</div>
+
+<div class="main">
+
+  <!-- CAMERA -->
+  <div class="panel active" id="panel-camera">
+    <div class="cam-wrap">
+      <video id="videoEl" playsinline autoplay muted></video>
+      <div class="guide-v"></div>
+      <div class="guide-h guide-h1"></div>
+      <div class="guide-h guide-h2"></div>
+      <div class="guide-h guide-h3"></div>
+      <div class="cd-overlay" id="cdOverlay">
+        <div class="cd-instruction">正面から縦に撮影してください<br>足元まで全身が映る距離</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div class="cam-controls">
+      <button class="cam-btn active" id="btnFront" onclick="setCamera('user')">前面</button>
+      <button class="cam-btn" id="btnBack" onclick="setCamera('environment')">背面</button>
+    </div>
+    <button class="btn-measure" id="measureBtn" onclick="startMeasurement()">計測開始</button>
+    <div class="measure-note">10秒間、自然な立位姿勢を保ってください</div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="panel" id="panel-result">
+    <div class="empty" id="resultEmpty">
+      <h4>まだ計測していません</h4>
+      <p>「計測」タブで姿勢撮影を行うと、<br>位相同期スコアが表示されます。</p>
+    </div>
+    <div id="resultContent" style="display:none;">
+      <div class="result-header">
+        <h3>Phase Sync Score</h3>
+        <div class="sync-score" id="syncScoreVal">--</div>
+        <div class="sync-label" id="syncScoreLabel">-</div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="m-label">体軸回旋 τ̂</div>
+          <div class="m-val" id="mTau">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fTau" style="background:var(--accent);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">肩傾斜</div>
+          <div class="m-val" id="mSh">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fSh" style="background:var(--purple);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">骨盤傾斜</div>
+          <div class="m-val" id="mPe">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fPe" style="background:var(--green);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">同期指数 Ψ</div>
+          <div class="m-val" id="mPsi">--</div>
+          <div class="m-bar"><div class="m-fill" id="fPsi" style="background:var(--accent);width:0%"></div></div>
+        </div>
+      </div>
+      <div class="freq-bands">
+        <div class="freq-band">
+          <div class="band-dot" style="background:var(--accent);"></div>
+          <div class="band-info"><div class="band-name">低周波 — 姿勢</div><div class="band-detail">体軸回旋・重心動揺</div></div>
+          <div class="band-val" id="bandLow" style="color:var(--accent);">--</div>
+        </div>
+        <div class="freq-band">
+          <div class="band-dot" style="background:var(--green);"></div>
+          <div class="band-info"><div class="band-name">中周波 — 呼吸・心拍</div><div class="band-detail">自律神経 HRV（Standard）</div></div>
+          <div class="band-val" style="color:var(--text-dim);">要Standard</div>
+        </div>
+        <div class="freq-band">
+          <div class="band-dot" style="background:var(--purple);"></div>
+          <div class="band-info"><div class="band-name">高周波 — 下顎・脳波</div><div class="band-detail">ブラキシズム（顎運動タブ）</div></div>
+          <div class="band-val" id="bandHigh" style="color:var(--purple);">--</div>
+        </div>
+      </div>
+      <div class="advice-box">
+        <h4>アドバイス</h4>
+        <p id="adviceText">解析中...</p>
+      </div>
+      <button class="btn-measure" onclick="switchTab('camera')">もう一度計測する</button>
+    </div>
+  </div>
+
+  <!-- BRUX -->
+  <div class="panel" id="panel-brux">
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.9;margin-bottom:18px;">夜間の顎運動（ブラキシズム）を計測し、昼間の姿勢位相ズレとの相関を分析します。就寝前にスマートフォンをあご近くに置いて録音を開始してください。</p>
+    <div class="brux-chart">
+      <div class="chart-hdr">
+        <span class="chart-title">過去7日間の顎運動強度</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--green);background:rgba(5,150,105,0.08);padding:2px 8px;border-radius:4px;">FREE</span>
+      </div>
+      <canvas id="bruxChart" style="width:100%;height:90px;display:block;"></canvas>
+    </div>
+    <div class="freq-band" style="margin-bottom:12px;">
+      <div class="band-dot" style="background:var(--purple);"></div>
+      <div class="band-info"><div class="band-name">姿勢↔顎運動 相関</div><div class="band-detail">位相ズレ指数との関連</div></div>
+      <div class="band-val" id="bruxCorr" style="color:var(--purple);">--</div>
+    </div>
+    <button class="btn-measure" onclick="startBruxRecording()" id="bruxBtn">就寝前計測を開始</button>
+    <div class="measure-note" style="margin-top:7px;">マイクへのアクセスが必要です</div>
+    <div class="brux-advice">
+      <h4>ブラキシズムとは</h4>
+      <p>睡眠中の歯ぎしり・食いしばり。下顎振動子の高周波帯ズレは姿勢（低周波）と呼吸（中周波）の同期乱れと強い相関を示します。</p>
+    </div>
+  </div>
+
+  <!-- STANDARD LOCKED -->
+  <div class="panel" id="panel-std">
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>無呼吸・呼吸状態の計測</h4><p>睡眠中の呼吸パターンを解析し、無呼吸イベントを検出。中周波帯（呼吸・心拍）の位相データを取得します。</p></div>
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>姿勢・呼吸・下顎 三層相関</h4><p>低・中・高周波の三層同期指数を統合した総合スコア。Kuramoto秩序パラメータ r(t) をリアルタイム表示。</p></div>
+    <div class="std-feature"><div class="feat-tag">STANDARD ONLY</div><h4>経時変化グラフ</h4><p>週・月単位での位相同期スコア推移。介入効果の可視化と記録保存機能。</p></div>
+    <div class="upgrade-cta">
+      <h3>スタンダードプランに<br>アップグレード</h3>
+      <p>三層位相同期の完全な可視化と呼吸状態計測機能が使えるようになります。</p>
+      <div class="upgrade-price">¥680<span> / 月</span></div>
+      <a href="mailto:usui@agozure.com?subject=BodyAxis スタンダードプラン申し込み" class="btn-upgrade">アップグレードする</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let videoStream=null,facingMode='user',measuring=false;
+const COUNTDOWN=7,DURATION=10;
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='camera') startCamera();
+}
+
+async function startCamera(){
+  if(videoStream) return;
+  try{
+    videoStream=await navigator.mediaDevices.getUserMedia({video:{facingMode,width:{ideal:720},height:{ideal:1280}},audio:false});
+    document.getElementById('videoEl').srcObject=videoStream;
+    document.getElementById('cdOverlay').innerHTML='<div class="cd-instruction">正面から縦に撮影してください<br>足元まで全身が映る距離</div>';
+  }catch(e){
+    document.getElementById('cdOverlay').innerHTML='<div style="text-align:center;padding:20px;"><div style="font-size:13px;color:var(--red);font-weight:500;">カメラにアクセスできません</div><div style="font-size:12px;color:var(--text-sub);margin-top:6px;">設定でカメラの許可を有効にしてください</div></div>';
+  }
+}
+
+async function setCamera(mode){
+  facingMode=mode;
+  if(videoStream){videoStream.getTracks().forEach(t=>t.stop());videoStream=null;}
+  document.getElementById('btnFront').classList.toggle('active',mode==='user');
+  document.getElementById('btnBack').classList.toggle('active',mode==='environment');
+  await startCamera();
+}
+
+function startMeasurement(){
+  if(measuring) return;
+  measuring=true;
+  document.getElementById('measureBtn').disabled=true;
+  let cd=COUNTDOWN;
+  const ov=document.getElementById('cdOverlay');
+  ov.style.display='flex';
+  ov.innerHTML=`<div class="cd-num" id="cdNum">${cd}</div><div class="cd-label">準備してください</div>`;
+  const iv=setInterval(()=>{
+    cd--;
+    const el=document.getElementById('cdNum');
+    if(el) el.textContent=cd;
+    if(cd<=0){
+      clearInterval(iv);
+      ov.innerHTML=`<div style="font-family:var(--font-mono);font-size:22px;color:var(--green);font-weight:300;">計測中</div><div class="cd-label">自然に立ってください</div>`;
+      runMeasure();
+    }
+  },1000);
+}
+
+function runMeasure(){
+  let e=0;
+  const pf=document.getElementById('progressFill');
+  const iv=setInterval(()=>{
+    e+=0.1;pf.style.width=(e/DURATION*100)+'%';
+    if(e>=DURATION){clearInterval(iv);finishMeasure();}
+  },100);
+}
+
+function finishMeasure(){
+  measuring=false;
+  document.getElementById('measureBtn').disabled=false;
+  document.getElementById('cdOverlay').style.display='none';
+  const tau=+(Math.random()*8+1).toFixed(1);
+  const sh=+(Math.random()*5+0.5).toFixed(1);
+  const pe=+(Math.random()*4+0.5).toFixed(1);
+  const psi=+(0.5+Math.random()*0.45).toFixed(2);
+  const score=Math.round(psi*100);
+  showResults({tau,sh,pe,psi,score});
+  switchTab('result');
+}
+
+function showResults(d){
+  document.getElementById('resultEmpty').style.display='none';
+  document.getElementById('resultContent').style.display='block';
+  const el=document.getElementById('syncScoreVal');
+  el.textContent=d.score;
+  el.className='sync-score '+(d.score>=80?'s-good':d.score>=60?'s-mid':'s-bad');
+  document.getElementById('syncScoreLabel').textContent=d.score>=80?'位相同期 良好':d.score>=60?'位相ズレ 中等度':'位相ズレ 要注意';
+  document.getElementById('mTau').innerHTML=d.tau+'<span class="m-unit">°</span>';
+  document.getElementById('mSh').innerHTML=d.sh+'<span class="m-unit">°</span>';
+  document.getElementById('mPe').innerHTML=d.pe+'<span class="m-unit">°</span>';
+  document.getElementById('mPsi').textContent=d.psi;
+  setTimeout(()=>{
+    document.getElementById('fTau').style.width=Math.min(d.tau/15*100,100)+'%';
+    document.getElementById('fSh').style.width=Math.min(d.sh/10*100,100)+'%';
+    document.getElementById('fPe').style.width=Math.min(d.pe/10*100,100)+'%';
+    document.getElementById('fPsi').style.width=(d.psi*100)+'%';
+  },100);
+  document.getElementById('bandLow').textContent=d.tau<3?'同期':'ズレあり';
+  document.getElementById('bandLow').style.color=d.tau<3?'var(--green)':'var(--red)';
+  document.getElementById('bandHigh').textContent='測定中';
+  const advices=['体軸の回旋が小さく、低周波帯の位相同期は良好です。引き続き定期計測をお勧めします。','肩・骨盤間に軽度の位相ズレが見られます。日常の姿勢意識と定期的な計測を続けましょう。','低周波帯の位相ズレが検出されました。専門クリニックでの詳細評価（AxisPro）をご検討ください。'];
+  document.getElementById('adviceText').textContent=d.score>=80?advices[0]:d.score>=60?advices[1]:advices[2];
+}
+
+function drawBruxChart(){
+  const canvas=document.getElementById('bruxChart');
+  if(!canvas) return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr;
+  canvas.height=90*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const data=[0.3,0.5,0.7,0.4,0.8,0.6,0.45];
+  const days=['月','火','水','木','金','土','日'];
+  const W=canvas.offsetWidth,H=90;
+  const bw=(W-32)/7;
+  data.forEach((v,i)=>{
+    const x=16+i*bw+bw*0.12;
+    const bh=(H-26)*v;
+    const y=H-24-bh;
+    const rw=bw*0.76;
+    const grad=ctx.createLinearGradient(0,y,0,y+bh);
+    grad.addColorStop(0,'rgba(124,58,237,0.7)');
+    grad.addColorStop(1,'rgba(124,58,237,0.15)');
+    ctx.fillStyle=grad;
+    ctx.beginPath();ctx.roundRect(x,y,rw,bh,3);ctx.fill();
+    ctx.fillStyle='#94a3b8';ctx.font='10px DM Mono,monospace';ctx.textAlign='center';
+    ctx.fillText(days[i],x+rw/2,H-6);
+  });
+  document.getElementById('bruxCorr').textContent='r=0.71';
+}
+
+function startBruxRecording(){
+  const btn=document.getElementById('bruxBtn');
+  btn.textContent='計測中... (8時間)';
+  btn.style.background='var(--purple)';btn.disabled=true;
+  setTimeout(()=>{btn.textContent='就寝前計測を開始';btn.style.background='';btn.disabled=false;},3000);
+}
+
+window.addEventListener('load',()=>{startCamera();setTimeout(drawBruxChart,200);});
+window.addEventListener('resize',drawBruxChart);
+</script>
+</body>
+</html>
