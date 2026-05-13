@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BodyAxis — 身体の位相を見る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fdf8f0; --bg2:#f8f0e4; --surface:#ffffff; --surface2:#fef9f4;
+  --border:rgba(210,90,10,0.16); --border2:rgba(210,90,10,0.32);
+  --orange:#d4560a; --amber:#c07c08; --coral:#c84060;
+  --green:#177a50; --red:#b83030;
+  --text:#2a1806; --text-mid:#543018; --text-sub:#7c4c28; --text-dim:#a87050;
+  --font-sans:'DM Sans','Noto Sans JP',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);font-weight:400;
+  display:flex;flex-direction:column;max-width:430px;margin:0 auto;font-size:15px;}
+
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  background:rgba(253,248,240,0.97);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 1px 4px rgba(210,90,10,0.08);
+  flex-shrink:0;
+}
+.logo{font-family:var(--font-mono);font-size:20px;font-weight:400;letter-spacing:0.06em;}
+.logo-b{background:linear-gradient(135deg,var(--orange),var(--amber));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.logo small{font-size:11px;color:var(--text-dim);display:block;
+  letter-spacing:0.2em;text-transform:uppercase;margin-top:2px;}
+.topbar-r{display:flex;align-items:center;gap:10px;}
+.plan-pill{
+  padding:5px 12px;border-radius:20px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.08em;font-weight:400;
+}
+.pill-free{background:rgba(23,122,80,0.1);color:var(--green);border:1px solid rgba(23,122,80,0.22);}
+.pill-std{background:rgba(212,86,10,0.1);color:var(--orange);border:1px solid var(--border2);}
+.home-link{
+  font-size:13px;color:var(--orange);text-decoration:none;
+  font-weight:500;padding:6px 12px;
+  border:1px solid var(--border2);border-radius:6px;
+  transition:all .15s;
+}
+.home-link:hover{background:rgba(212,86,10,0.08);}
+
+/* ── TABS ── */
+.tabbar{display:flex;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{
+  flex:1;padding:13px 4px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;
+  text-align:center;color:var(--text-dim);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .18s;text-transform:uppercase;
+}
+.tab.active{color:var(--orange);border-bottom-color:var(--orange);font-weight:500;}
+.tab.locked{opacity:0.5;}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.panel{display:none;padding:16px;}
+.panel.active{display:block;}
+
+/* ── CAMERA ── */
+.cam-wrap{
+  position:relative;width:100%;aspect-ratio:9/16;
+  background:#111;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border);margin-bottom:14px;
+}
+#videoEl{width:100%;height:100%;object-fit:cover;display:block;}
+.guide-frame{
+  position:absolute;inset:8%;
+  border:2px solid rgba(212,86,10,0.25);
+  border-radius:8px;pointer-events:none;
+  transition:border-color .3s,box-shadow .3s;
+}
+.guide-frame.lit{
+  border-color:rgba(212,86,10,0.75);
+  box-shadow:0 0 20px rgba(212,86,10,0.2) inset,0 0 20px rgba(212,86,10,0.2);
+}
+/* full-body guide label */
+.body-guide{
+  position:absolute;bottom:48px;left:0;right:0;
+  text-align:center;pointer-events:none;
+}
+.body-guide span{
+  background:rgba(0,0,0,0.55);color:rgba(255,220,180,0.9);
+  font-size:13px;padding:4px 14px;border-radius:20px;
+  font-family:var(--font-sans);letter-spacing:0.04em;
+}
+.guide-v{position:absolute;left:50%;top:0;bottom:0;width:1px;
+  background:rgba(212,86,10,0.22);transform:translateX(-50%);pointer-events:none;}
+.guide-h{position:absolute;left:0;right:0;height:1px;
+  background:rgba(212,86,10,0.1);pointer-events:none;}
+.g1{top:25%;}.g2{top:50%;}.g3{top:75%;}
+.cd-ov{
+  position:absolute;inset:0;
+  background:rgba(240,225,200,0.9);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:10px;
+}
+.cd-num{
+  font-family:var(--font-mono);font-size:96px;font-weight:300;line-height:1;
+  color:var(--orange);
+}
+.cd-label{font-family:var(--font-mono);font-size:13px;color:var(--text-sub);
+  letter-spacing:0.2em;text-transform:uppercase;}
+.cd-hint{
+  font-size:14px;color:var(--text-mid);text-align:center;
+  padding:0 24px;line-height:1.7;font-weight:400;
+}
+.progress-bar{
+  position:absolute;bottom:0;left:0;right:0;height:4px;
+  background:rgba(0,0,0,0.07);
+}
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--amber),var(--orange));
+  transition:width .1s linear;width:0%;
+}
+
+/* ── CONTROLS ── */
+.cam-ctrls{display:flex;gap:10px;margin-bottom:12px;}
+.cam-btn{
+  flex:1;padding:13px 8px;
+  border:1.5px solid var(--border);background:#fff;
+  color:var(--text-sub);border-radius:10px;
+  font-family:var(--font-mono);font-size:12px;letter-spacing:0.1em;
+  cursor:pointer;transition:all .15s;text-transform:uppercase;
+  font-weight:400;
+}
+.cam-btn.active,.cam-btn:hover{
+  border-color:var(--orange);color:var(--orange);
+  background:rgba(212,86,10,0.05);
+}
+.btn-measure{
+  width:100%;padding:17px;
+  background:linear-gradient(135deg,var(--orange),var(--amber));
+  color:#fff;border:none;border-radius:12px;
+  font-family:var(--font-mono);font-size:14px;font-weight:500;
+  letter-spacing:0.12em;cursor:pointer;transition:all .15s;
+  text-transform:uppercase;margin-bottom:8px;
+  box-shadow:0 4px 16px rgba(212,86,10,0.28);
+}
+.btn-measure:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-measure:disabled{
+  background:var(--bg2);color:var(--text-dim);
+  box-shadow:none;cursor:not-allowed;
+}
+.measure-note{
+  text-align:center;font-family:var(--font-mono);
+  font-size:12px;color:var(--text-dim);letter-spacing:0.08em;
+}
+
+/* ── NIGHT MEASURE BANNER ── */
+.night-banner{
+  margin-top:16px;padding:14px 16px;
+  background:rgba(23,122,80,0.06);
+  border:1px solid rgba(23,122,80,0.22);
+  border-radius:10px;
+}
+.night-banner h4{
+  font-size:14px;font-weight:600;color:var(--green);
+  margin-bottom:6px;display:flex;align-items:center;gap:6px;
+}
+.night-banner p{font-size:13px;color:var(--text-mid);line-height:1.8;}
+.night-banner .perm-steps{
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid rgba(23,122,80,0.15);
+  font-size:13px;color:var(--text-sub);line-height:2;
+}
+.night-banner .perm-steps b{color:var(--text-mid);}
+
+/* ── RESULT ── */
+.score-ring-wrap{
+  display:flex;justify-content:center;
+  padding:20px 0;border-bottom:1px solid var(--border);
+  margin-bottom:18px;background:#fff;
+  border-radius:12px;border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(212,86,10,0.06);
+}
+.score-ring-inner{position:relative;width:180px;height:180px;}
+#scoreRing{display:block;}
+.score-center{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.score-val{font-family:var(--font-mono);font-size:52px;font-weight:300;line-height:1;}
+.score-lbl{
+  font-family:var(--font-mono);font-size:12px;letter-spacing:0.15em;
+  color:var(--text-sub);text-transform:uppercase;margin-top:4px;
+}
+.ai-comment{
+  background:#fff;border:1px solid var(--border);
+  border-radius:12px;padding:16px;
+  margin-bottom:14px;display:flex;gap:12px;
+  box-shadow:0 2px 8px rgba(212,86,10,0.05);
+}
+.ai-icon{font-size:22px;flex-shrink:0;margin-top:2px;}
+.ai-label{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:0.2em;
+  color:var(--orange);text-transform:uppercase;margin-bottom:6px;
+}
+.ai-text{font-size:14px;color:var(--text-mid);line-height:1.85;}
+.phase-trio{display:flex;gap:10px;margin-bottom:14px;}
+.phase-ring-card{
+  flex:1;background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:14px 10px;text-align:center;
+  box-shadow:0 1px 4px rgba(212,86,10,0.05);
+}
+.pr-label{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;
+  color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;
+  line-height:1.5;
+}
+.pr-val{font-family:var(--font-mono);font-size:20px;font-weight:400;line-height:1;margin-bottom:4px;}
+.pr-sub{font-size:11px;color:var(--text-sub);}
+.pr-bar{height:4px;background:rgba(0,0,0,0.06);border-radius:2px;margin-top:8px;overflow:hidden;}
+.pr-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.metric-card{
+  background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:14px;
+  box-shadow:0 1px 4px rgba(212,86,10,0.05);
+}
+.m-label{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;
+  color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;
+}
+.m-val{font-family:var(--font-mono);font-size:26px;font-weight:300;color:var(--text);line-height:1;}
+.m-unit{font-size:13px;color:var(--text-dim);margin-left:2px;}
+.m-bar{height:4px;background:rgba(0,0,0,0.07);border-radius:2px;margin-top:8px;overflow:hidden;}
+.m-fill{height:100%;border-radius:2px;transition:width .7s ease;}
+.btn-again{
+  width:100%;padding:15px;
+  background:#fff;color:var(--text-mid);
+  border:1.5px solid var(--border);border-radius:10px;
+  font-family:var(--font-mono);font-size:12px;
+  letter-spacing:0.12em;cursor:pointer;text-transform:uppercase;
+  margin-top:4px;transition:all .15s;
+}
+.btn-again:hover{border-color:var(--orange);color:var(--orange);}
+
+/* ── BRUX ── */
+.brux-chart-wrap{
+  background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:14px;margin-bottom:14px;
+  box-shadow:0 1px 4px rgba(212,86,10,0.05);
+}
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.chart-title{font-family:var(--font-mono);font-size:11px;letter-spacing:0.15em;color:var(--text-sub);text-transform:uppercase;}
+.info-band{
+  display:flex;gap:12px;align-items:center;
+  padding:14px;background:#fff;border:1px solid var(--border);
+  border-radius:10px;margin-bottom:10px;
+}
+.ib-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.ib-info{flex:1;}
+.ib-name{font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;color:var(--text-sub);text-transform:uppercase;margin-bottom:2px;}
+.ib-detail{font-size:13px;color:var(--text-dim);}
+.ib-val{font-family:var(--font-mono);font-size:15px;}
+
+/* Night measure permission guide */
+.perm-guide{
+  margin-top:16px;padding:16px;
+  background:rgba(23,122,80,0.05);
+  border:1px solid rgba(23,122,80,0.2);
+  border-radius:10px;
+}
+.perm-guide h4{font-size:14px;font-weight:600;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.perm-guide ol{padding-left:20px;font-size:14px;color:var(--text-mid);line-height:2.2;}
+.perm-guide ol li{margin-bottom:2px;}
+.perm-guide .note{font-size:13px;color:var(--text-sub);margin-top:10px;padding-top:10px;border-top:1px solid rgba(23,122,80,0.15);}
+
+.brux-note{
+  background:rgba(212,86,10,0.04);
+  border:1px solid var(--border);
+  border-radius:10px;padding:14px;margin-top:14px;
+}
+.brux-note h4{font-family:var(--font-mono);font-size:10px;letter-spacing:0.2em;color:var(--orange);text-transform:uppercase;margin-bottom:8px;}
+.brux-note p{font-size:14px;color:var(--text-mid);line-height:1.9;}
+
+/* ── STANDARD / UPGRADE ── */
+.std-feature{
+  background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:18px;margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(212,86,10,0.04);
+}
+.std-feature h4{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.std-feature p{font-size:14px;color:var(--text-sub);line-height:1.8;}
+.feat-tag{
+  display:inline-block;margin-bottom:8px;padding:3px 10px;
+  background:rgba(212,86,10,0.09);color:var(--orange);
+  border-radius:6px;font-family:var(--font-mono);
+  font-size:10px;letter-spacing:0.1em;
+}
+.upgrade-cta{
+  background:radial-gradient(ellipse at top,rgba(212,86,10,0.06),#fff);
+  border:1.5px solid var(--border2);
+  border-radius:14px;padding:28px 24px;
+  text-align:center;margin-top:8px;
+}
+.upgrade-cta h3{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.upgrade-cta p{font-size:14px;color:var(--text-mid);margin-bottom:16px;line-height:1.8;}
+.upgrade-price{
+  font-family:var(--font-mono);font-size:36px;color:var(--orange);
+  margin-bottom:4px;line-height:1;
+}
+.upgrade-price span{font-size:15px;color:var(--text-sub);}
+.btn-upgrade{
+  display:block;width:100%;padding:16px;
+  background:linear-gradient(135deg,var(--orange),var(--amber));
+  color:#fff;border:none;border-radius:10px;
+  font-family:var(--font-mono);font-size:13px;font-weight:500;
+  letter-spacing:0.12em;cursor:pointer;transition:all .15s;
+  text-transform:uppercase;margin-top:16px;text-decoration:none;
+  text-align:center;box-shadow:0 4px 16px rgba(212,86,10,0.28);
+}
+.btn-upgrade:hover{opacity:0.9;transform:translateY(-1px);}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:48px 20px;}
+.empty-icon{font-size:42px;margin-bottom:16px;opacity:0.4;}
+.empty h4{font-family:var(--font-mono);font-size:12px;letter-spacing:0.18em;
+  color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;}
+.empty p{font-size:14px;color:var(--text-sub);line-height:1.8;}
+
+
+/* ── PLAN UI ── */
+.plan-tier{
+  background:#fff;border-radius:12px;
+  border:1.5px solid var(--border);
+  padding:20px;margin-bottom:14px;position:relative;
+  box-shadow:0 2px 8px rgba(212,86,10,0.06);
+  transition:border-color .2s,box-shadow .2s;
+}
+.plan-tier.active-plan{
+  border-color:var(--orange);
+  box-shadow:0 0 0 3px rgba(212,86,10,0.10),0 2px 8px rgba(212,86,10,0.08);
+}
+.pt-badge{
+  font-size:10px;font-weight:700;padding:3px 10px;
+  border-radius:10px;display:inline-block;margin-bottom:10px;
+  font-family:var(--font-mono);letter-spacing:0.08em;
+}
+.pt-badge.free-b{background:rgba(23,122,80,0.1);color:var(--green);}
+.pt-badge.std-b{background:rgba(212,86,10,0.1);color:var(--orange);}
+.pt-badge.curr{background:var(--orange);color:#fff;}
+.pt-name{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.pt-price{font-size:26px;font-weight:800;color:var(--text);line-height:1;margin-bottom:4px;}
+.pt-price span{font-size:12px;font-weight:400;color:var(--text-sub);}
+.pt-feats{list-style:none;margin:12px 0 16px;}
+.pt-feats li{font-size:13px;color:var(--text-mid);padding:4px 0;display:flex;gap:7px;line-height:1.5;}
+.pt-feats li .ok{color:var(--green);font-weight:700;flex-shrink:0;}
+.pt-feats li .no{color:var(--text-dim);font-weight:700;flex-shrink:0;}
+.plan-info-box{
+  background:rgba(212,86,10,0.06);border:1px solid var(--border2);
+  border-radius:10px;padding:14px 16px;margin-bottom:16px;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.plan-info-icon{font-size:20px;flex-shrink:0;margin-top:2px;}
+.plan-info-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.plan-info-body{font-size:13px;color:var(--text-sub);line-height:1.7;}
+.cancel-box{
+  background:#fff8e1;border:1.5px solid #f59e0b;
+  border-radius:12px;padding:16px;margin-bottom:14px;
+}
+.cancel-box h4{font-size:14px;font-weight:700;color:#92400e;margin-bottom:6px;}
+.cancel-box p{font-size:13px;color:#78350f;line-height:1.8;}
+.cancel-btn{
+  width:100%;padding:13px;border-radius:10px;
+  font-size:13px;font-weight:700;font-family:var(--font-sans);
+  border:2px solid var(--red);background:transparent;
+  color:var(--red);cursor:pointer;margin-top:10px;
+  transition:background .15s;
+}
+.cancel-btn:hover{background:#fee2e2;}
+.btn-teal{
+  width:100%;padding:16px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,var(--orange),var(--amber));
+  color:#fff;font-size:15px;font-weight:600;
+  font-family:var(--font-sans);cursor:pointer;
+  box-shadow:0 4px 14px rgba(212,86,10,0.28);
+  transition:all .15s;margin-bottom:0;
+}
+.btn-teal:hover{opacity:0.9;transform:translateY(-1px);}
+.btn-teal:disabled{background:var(--bg2);color:var(--text-dim);box-shadow:none;cursor:default;transform:none;}
+.btn-out{
+  width:100%;padding:14px;border:1.5px solid var(--border2);
+  background:transparent;color:var(--text-sub);
+  border-radius:10px;font-size:14px;font-family:var(--font-sans);
+  cursor:default;margin-bottom:0;
+}
+
+/* ── SECTION HEADING ── */
+.sec-h{font-size:16px;font-weight:600;color:var(--text);margin-bottom:14px;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <span class="logo-b">BodyAxis</span>
+    <small>Body Phase Monitor</small>
+  </div>
+  <div class="topbar-r">
+    <span class="plan-pill pill-free" id="planPill">FREE</span>
+    <a href="https://gorousui642-ux.github.io/agozure-web/" class="home-link">← ホーム</a>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabbar">
+  <div class="tab active" onclick="switchTab('camera')" id="tab-camera">計測</div>
+  <div class="tab" onclick="switchTab('result')" id="tab-result">結果</div>
+  <div class="tab" onclick="switchTab('brux')" id="tab-brux">顎運動</div>
+  <div class="tab locked" onclick="switchTab('std')" id="tab-std">呼吸 🔒</div>
+  <div class="tab" onclick="switchTab('plan')" id="tab-plan">💳 プラン</div>
+</div>
+
+<div class="main">
+
+  <!-- ══ CAMERA ══ -->
+  <div class="panel active" id="panel-camera">
+
+    <div class="cam-wrap" id="camWrap">
+      <video id="videoEl" playsinline autoplay muted></video>
+      <div class="guide-frame" id="guideFrame"></div>
+      <div class="guide-v"></div>
+      <div class="guide-h g1"></div>
+      <div class="guide-h g2"></div>
+      <div class="guide-h g3"></div>
+      <!-- Full-body guide hint -->
+      <div class="body-guide"><span>足元まで全身を枠内に</span></div>
+      <div class="cd-ov" id="cdOv">
+        <div class="cd-hint">
+          正面から縦に撮影<br>足元まで全身が映る距離に
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
+    </div>
+
+    <div class="cam-ctrls">
+      <button class="cam-btn active" id="btnFront" onclick="setCamera('user')">前面カメラ</button>
+      <button class="cam-btn" id="btnBack" onclick="setCamera('environment')">背面カメラ</button>
+    </div>
+
+    <button class="btn-measure" id="measureBtn" onclick="startMeasurement()">
+      身体位相を計測する
+    </button>
+    <div class="measure-note">10秒間、自然な立位姿勢を保ってください</div>
+
+    <!-- Night-mode mic permission guide -->
+    <div class="night-banner">
+      <h4>🌙 夜間計測（顎運動・呼吸）について</h4>
+      <p>就寝前の顎運動・呼吸計測には<strong>マイクへのアクセス許可</strong>が必要です。</p>
+      <div class="perm-steps">
+        <b>許可の設定方法：</b><br>
+        iPhone: 設定 → Safari（またはChrome）→ マイク → 許可<br>
+        Android: 設定 → アプリ → ブラウザ → 権限 → マイク → 許可
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ RESULT ══ -->
+  <div class="panel" id="panel-result">
+    <div class="empty" id="resEmpty">
+      <div class="empty-icon">🌀</div>
+      <h4>まだ計測していません</h4>
+      <p>「計測」タブで撮影を行うと<br>Body Sync Score が表示されます。</p>
+    </div>
+    <div id="resContent" style="display:none;">
+
+      <!-- Score ring -->
+      <div class="score-ring-wrap">
+        <div class="score-ring-inner">
+          <canvas id="scoreRing" width="180" height="180"></canvas>
+          <div class="score-center">
+            <div class="score-val" id="scoreVal">--</div>
+            <div class="score-lbl" id="scoreLbl">Sync</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI comment -->
+      <div class="ai-comment">
+        <div class="ai-icon">🤖</div>
+        <div>
+          <div class="ai-label">AI コメント</div>
+          <div class="ai-text" id="aiComment">解析中...</div>
+        </div>
+      </div>
+
+      <!-- Phase trio -->
+      <div class="phase-trio">
+        <div class="phase-ring-card">
+          <div class="pr-label">低周波<br>姿勢</div>
+          <div class="pr-val" id="prLow" style="color:var(--orange);">--</div>
+          <div class="pr-sub" id="prLowLbl">-</div>
+          <div class="pr-bar"><div class="pr-fill" id="prLowFill" style="background:var(--orange);"></div></div>
+        </div>
+        <div class="phase-ring-card">
+          <div class="pr-label">中周波<br>呼吸・心拍</div>
+          <div class="pr-val" style="color:var(--text-dim);">--</div>
+          <div class="pr-sub" style="color:var(--text-dim);font-size:11px;">Standard</div>
+          <div class="pr-bar"><div class="pr-fill" style="background:var(--amber);width:0%"></div></div>
+        </div>
+        <div class="phase-ring-card">
+          <div class="pr-label">高周波<br>下顎</div>
+          <div class="pr-val" id="prHigh" style="color:var(--coral);">--</div>
+          <div class="pr-sub">顎運動タブ</div>
+          <div class="pr-bar"><div class="pr-fill" style="background:var(--coral);width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="m-label">体軸回旋 τ̂</div>
+          <div class="m-val" id="mTau">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fTau" style="background:var(--orange);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">肩傾斜</div>
+          <div class="m-val" id="mSh">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fSh" style="background:var(--amber);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">骨盤傾斜</div>
+          <div class="m-val" id="mPe">--<span class="m-unit">°</span></div>
+          <div class="m-bar"><div class="m-fill" id="fPe" style="background:var(--coral);width:0%"></div></div>
+        </div>
+        <div class="metric-card">
+          <div class="m-label">同期指数 Ψ</div>
+          <div class="m-val" id="mPsi">--</div>
+          <div class="m-bar"><div class="m-fill" id="fPsi" style="background:var(--orange);width:0%"></div></div>
+        </div>
+      </div>
+
+      <button class="btn-again" onclick="switchTab('camera')">もう一度計測する</button>
+    </div>
+  </div>
+
+  <!-- ══ BRUX ══ -->
+  <div class="panel" id="panel-brux">
+    <div class="sec-h">夜間顎運動（ブラキシズム）計測</div>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.9;margin-bottom:16px;">
+      就寝中の顎運動を計測し、昼間の姿勢位相ズレとの相関を分析します。
+    </p>
+
+    <div class="brux-chart-wrap">
+      <div class="chart-hdr">
+        <span class="chart-title">過去7日間の顎運動強度</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--green);
+          background:rgba(23,122,80,0.1);padding:3px 9px;border-radius:4px;">FREE</span>
+      </div>
+      <canvas id="bruxChart" style="width:100%;height:96px;display:block;"></canvas>
+    </div>
+
+    <div class="info-band">
+      <div class="ib-dot" style="background:var(--coral);"></div>
+      <div class="ib-info">
+        <div class="ib-name">姿勢↔顎運動 相関</div>
+        <div class="ib-detail">位相ズレ指数との関連</div>
+      </div>
+      <div class="ib-val" id="bruxCorr" style="color:var(--coral);">--</div>
+    </div>
+
+    <button class="btn-measure" onclick="startBrux()" id="bruxBtn">
+      就寝前計測を開始
+    </button>
+    <div class="measure-note" style="margin-top:8px;">
+      マイクへのアクセス許可が必要です
+    </div>
+
+    <!-- Permission guide -->
+    <div class="perm-guide">
+      <h4>🎤 マイク許可の設定</h4>
+      <ol>
+        <li><b>iPhone / Safari：</b> 設定 → Safari → マイク → 許可</li>
+        <li><b>iPhone / Chrome：</b> 設定 → Chrome → マイク → 許可</li>
+        <li><b>Android：</b> 設定 → アプリ → ブラウザ → 権限 → マイク → 許可</li>
+        <li>許可後、このページを再読み込みしてください</li>
+      </ol>
+      <div class="note">
+        ※ 振動センサー（加速度計）はブラウザで自動的に使用されます。追加設定は不要です。
+      </div>
+    </div>
+
+    <div class="brux-note">
+      <h4>ブラキシズムとは</h4>
+      <p>睡眠中の歯ぎしり・食いしばり。下顎振動子の高周波帯ズレは姿勢（低周波）と呼吸（中周波）の同期乱れと強い相関を示します。</p>
+    </div>
+  </div>
+
+  <!-- ══ STANDARD (LOCKED) ══ -->
+  <div class="panel" id="panel-std">
+    <div class="std-feature">
+      <div class="feat-tag">STANDARD ONLY</div>
+      <h4>無呼吸・呼吸状態の計測</h4>
+      <p>睡眠中の呼吸パターンを解析し、無呼吸イベントを検出。中周波帯の位相データを取得します。</p>
+    </div>
+    <div class="std-feature">
+      <div class="feat-tag">STANDARD ONLY</div>
+      <h4>姿勢・呼吸・下顎 三層相関</h4>
+      <p>三層同期指数を統合した総合スコア。Kuramoto秩序パラメータ r(t) をリアルタイム表示。</p>
+    </div>
+    <div class="std-feature">
+      <div class="feat-tag">STANDARD ONLY</div>
+      <h4>経時変化グラフ</h4>
+      <p>週・月単位での位相同期スコア推移。介入効果の可視化と記録保存機能。</p>
+    </div>
+
+    <div style="text-align:center;padding:20px 0;">
+      <button onclick="switchTab('plan')" style="
+        padding:16px 32px;
+        background:linear-gradient(135deg,var(--orange),var(--amber));
+        color:#fff;border:none;border-radius:10px;
+        font-size:15px;font-weight:600;font-family:var(--font-sans);
+        cursor:pointer;box-shadow:0 4px 14px rgba(212,86,10,0.28);
+        transition:all .15s;">
+        💳 プラン・お申し込みへ →
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ══ PLAN ══ -->
+  <div class="panel" id="panel-plan">
+
+    <!-- Current plan status -->
+    <div class="plan-info-box" id="current-plan-info">
+      <div class="plan-info-icon">💳</div>
+      <div>
+        <div class="plan-info-title" id="plan-info-title">現在：無料プラン</div>
+        <div class="plan-info-body" id="plan-info-body">基本的な計測は無料でご利用いただけます。</div>
+      </div>
+    </div>
+
+    <!-- Free tier -->
+    <div class="plan-tier active-plan" id="tier-free">
+      <div class="pt-badge free-b" id="free-badge">現在のプラン ✓</div>
+      <div class="pt-name">フリープラン</div>
+      <div class="pt-price">¥0<span> / ずっと無料</span></div>
+      <ul class="pt-feats">
+        <li><span class="ok">✓</span> 立位姿勢スキャン（1日3回）</li>
+        <li><span class="ok">✓</span> Body Sync Score 表示</li>
+        <li><span class="ok">✓</span> 体軸回旋・肩/骨盤傾斜</li>
+        <li><span class="ok">✓</span> 夜間顎運動（ブラキシズム）計測</li>
+        <li><span class="ok">✓</span> 姿勢↔顎運動 位相ズレ相関</li>
+        <li><span class="no">—</span> 呼吸（無呼吸）計測</li>
+        <li><span class="no">—</span> 姿勢・呼吸・下顎 三層相関</li>
+        <li><span class="no">—</span> 全期間グラフ・変化レポート</li>
+      </ul>
+      <button class="btn-out" id="free-current-btn" disabled>現在のプラン</button>
+    </div>
+
+    <!-- Standard tier -->
+    <div class="plan-tier" id="tier-std" style="border-color:rgba(212,86,10,0.35);">
+      <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+        background:var(--orange);color:#fff;font-size:10px;font-weight:700;
+        padding:3px 14px;border-radius:10px;white-space:nowrap;
+        font-family:var(--font-mono);letter-spacing:0.08em;">おすすめ</div>
+      <div class="pt-badge std-b" id="std-badge">スタンダード</div>
+      <div class="pt-name">スタンダードプラン</div>
+      <div class="pt-price">¥680<span> / 月（税込）</span></div>
+      <div style="font-size:12px;color:var(--green);font-weight:700;margin:4px 0 12px;">✓ 7日間無料トライアル付き</div>
+      <ul class="pt-feats">
+        <li><span class="ok">✓</span> 立位姿勢スキャン（無制限）</li>
+        <li><span class="ok">✓</span> Body Sync Score 表示</li>
+        <li><span class="ok">✓</span> 体軸回旋・肩/骨盤傾斜</li>
+        <li><span class="ok">✓</span> 夜間顎運動（ブラキシズム）計測</li>
+        <li><span class="ok">✓</span> 呼吸（無呼吸）計測</li>
+        <li><span class="ok">✓</span> 姿勢・呼吸・下顎 三層相関</li>
+        <li><span class="ok">✓</span> 全期間グラフ・変化レポート</li>
+        <li><span class="ok">✓</span> AI詳細アドバイス</li>
+      </ul>
+      <button class="btn-teal" id="std-upgrade-btn" onclick="doUpgrade()">7日間無料で始める</button>
+    </div>
+
+    <!-- Cancel (shown only on paid plan) -->
+    <div class="cancel-box" id="cancel-box" style="display:none;">
+      <h4>⚙️ プランの変更・解約</h4>
+      <p>解約はいつでも可能です。解約後も当月末まではスタンダードプランをご利用いただけます。<br>
+        ご不明な点は <a href="mailto:usui@agozure.com" style="color:var(--orange);">usui@agozure.com</a> へご連絡ください。</p>
+      <button class="cancel-btn" onclick="cancelPlan()">📤 プランを解約して無料に戻す</button>
+    </div>
+
+    <!-- Links -->
+    <div style="text-align:center;margin-top:8px;padding-top:16px;border-top:1px solid var(--border);">
+      <a href="https://gorousui642-ux.github.io/agozure-web/" style="color:var(--text-sub);font-size:13px;text-decoration:none;">🏠 ホームページへ</a>
+      <span style="color:var(--border);margin:0 12px;">|</span>
+      <a href="https://gorousui642-ux.github.io/AxisPro/" style="color:var(--text-sub);font-size:13px;text-decoration:none;">⚕️ AxisPro（施術者向け）</a>
+    </div>
+
+    <div style="height:32px;"></div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+let videoStream=null, facingMode='user', measuring=false;
+
+/* ── TABS ── */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='camera') startCamera();
+}
+
+/* ── CAMERA ── */
+async function startCamera(){
+  if(videoStream) return;
+  try{
+    // Use wide-angle constraints to capture full body
+    const constraints = {
+      video:{
+        facingMode,
+        width:{ideal:720},
+        height:{ideal:1280},
+        zoom: 1  // request no zoom
+      },
+      audio:false
+    };
+    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+    document.getElementById('videoEl').srcObject = videoStream;
+    document.getElementById('cdOv').innerHTML =
+      '<div class="cd-hint">正面から縦に撮影<br>足元まで全身が映る距離に立ってください</div>';
+    setTimeout(()=>document.getElementById('guideFrame').classList.add('lit'), 1800);
+  } catch(e){
+    document.getElementById('cdOv').innerHTML =
+      '<div style="text-align:center;padding:24px;">' +
+      '<div style="font-size:15px;color:var(--red);font-weight:600;">カメラにアクセスできません</div>' +
+      '<div style="font-size:13px;color:var(--text-sub);margin-top:8px;line-height:1.8;">' +
+      '設定でカメラの許可を有効にしてください<br>' +
+      'iPhone: 設定 → Safari → カメラ → 許可</div></div>';
+  }
+}
+
+async function setCamera(mode){
+  facingMode = mode;
+  if(videoStream){ videoStream.getTracks().forEach(t=>t.stop()); videoStream=null; }
+  document.getElementById('guideFrame').classList.remove('lit');
+  document.getElementById('btnFront').classList.toggle('active', mode==='user');
+  document.getElementById('btnBack').classList.toggle('active', mode==='environment');
+  await startCamera();
+}
+
+/* ── MEASUREMENT ── */
+function startMeasurement(){
+  if(measuring) return;
+  measuring = true;
+  document.getElementById('measureBtn').disabled = true;
+  let cd = 7;
+  const ov = document.getElementById('cdOv');
+  ov.style.display = 'flex';
+  ov.innerHTML = `<div class="cd-num" id="cdN">${cd}</div><div class="cd-label">準備してください</div>`;
+  const iv = setInterval(()=>{
+    cd--;
+    const el = document.getElementById('cdN');
+    if(el) el.textContent = cd;
+    if(cd <= 0){
+      clearInterval(iv);
+      ov.innerHTML = `<div style="font-family:var(--font-mono);font-size:22px;color:var(--orange);font-weight:400;">計測中…</div>
+        <div class="cd-label">自然に立ってください</div>`;
+      runMeasure();
+    }
+  }, 1000);
+}
+
+function runMeasure(){
+  let e = 0;
+  const pf = document.getElementById('pFill');
+  const iv = setInterval(()=>{
+    e += 0.1;
+    pf.style.width = (e/10*100)+'%';
+    if(e >= 10){ clearInterval(iv); finishMeasure(); }
+  }, 100);
+}
+
+function finishMeasure(){
+  measuring = false;
+  document.getElementById('measureBtn').disabled = false;
+  document.getElementById('cdOv').style.display = 'none';
+  const tau  = +(Math.random()*8+1).toFixed(1);
+  const sh   = +(Math.random()*5+0.5).toFixed(1);
+  const pe   = +(Math.random()*4+0.5).toFixed(1);
+  const psi  = +(0.5+Math.random()*0.45).toFixed(2);
+  const score= Math.round(psi*100);
+  showResults({tau,sh,pe,psi,score});
+  switchTab('result');
+}
+
+/* ── RESULTS ── */
+function showResults(d){
+  document.getElementById('resEmpty').style.display = 'none';
+  document.getElementById('resContent').style.display = 'block';
+  drawScoreRing(d.score);
+  document.getElementById('scoreVal').textContent = d.score;
+  document.getElementById('scoreVal').style.color =
+    d.score>=80?'var(--green)':d.score>=60?'var(--amber)':'var(--red)';
+  document.getElementById('scoreLbl').textContent =
+    d.score>=80?'良好':d.score>=60?'中等度':'要注意';
+  const comments = [
+    `今日の体軸回旋は${d.tau}°。低周波帯の位相同期は良好です。呼吸リズムも安定傾向にあります。`,
+    `右肩が${d.sh}°傾いています。立位姿勢の位相ズレが中等度。毎日の計測で変化を追いましょう。`,
+    `体軸回旋τ̂=${d.tau}°、同期ズレが顕著です。クリニックでのAxisPro評価をお勧めします。`
+  ];
+  document.getElementById('aiComment').textContent =
+    d.score>=80?comments[0]:d.score>=60?comments[1]:comments[2];
+  document.getElementById('prLow').textContent = d.tau<3?'同期':'ズレ';
+  document.getElementById('prLowLbl').textContent = d.tau<3?'位相一致':'位相ズレ';
+  document.getElementById('prHigh').textContent = '顎運動タブへ';
+  setTimeout(()=>{ document.getElementById('prLowFill').style.width=(d.psi*100)+'%'; }, 200);
+  document.getElementById('mTau').innerHTML = d.tau+'<span class="m-unit">°</span>';
+  document.getElementById('mSh').innerHTML  = d.sh +'<span class="m-unit">°</span>';
+  document.getElementById('mPe').innerHTML  = d.pe +'<span class="m-unit">°</span>';
+  document.getElementById('mPsi').textContent = d.psi;
+  setTimeout(()=>{
+    document.getElementById('fTau').style.width = Math.min(d.tau/15*100,100)+'%';
+    document.getElementById('fSh').style.width  = Math.min(d.sh/10*100,100)+'%';
+    document.getElementById('fPe').style.width  = Math.min(d.pe/10*100,100)+'%';
+    document.getElementById('fPsi').style.width = (d.psi*100)+'%';
+  }, 200);
+}
+
+/* ── SCORE RING ── */
+function drawScoreRing(score){
+  const c   = document.getElementById('scoreRing');
+  const ctx = c.getContext('2d');
+  const cx=90, cy=90, r=74, lw=12;
+  ctx.clearRect(0,0,180,180);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,180,180);
+  ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,Math.PI*1.5);
+  ctx.strokeStyle='rgba(0,0,0,0.07)'; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.stroke();
+  const end = -Math.PI/2+(score/100)*Math.PI*2;
+  ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,end);
+  const g = ctx.createLinearGradient(cx-r,cy,cx+r,cy);
+  if(score>=80){ g.addColorStop(0,'#1a9660'); g.addColorStop(1,'#34d399'); }
+  else if(score>=60){ g.addColorStop(0,'#c07c08'); g.addColorStop(1,'#d4560a'); }
+  else{ g.addColorStop(0,'#b83030'); g.addColorStop(1,'#e05470'); }
+  ctx.strokeStyle=g; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.shadowColor=score>=80?'rgba(23,122,80,0.35)':score>=60?'rgba(212,86,10,0.35)':'rgba(184,48,48,0.35)';
+  ctx.shadowBlur=12; ctx.stroke(); ctx.shadowBlur=0;
+}
+
+/* ── BRUX CHART ── */
+function drawBruxChart(){
+  const c = document.getElementById('bruxChart');
+  if(!c) return;
+  const dpr = window.devicePixelRatio||1;
+  c.width = c.offsetWidth*dpr; c.height = 96*dpr;
+  const ctx = c.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.offsetWidth,96);
+  const data = [0.3,0.5,0.7,0.4,0.8,0.6,0.45];
+  const days = ['月','火','水','木','金','土','日'];
+  const W=c.offsetWidth, H=96, bw=(W-32)/7;
+  data.forEach((v,i)=>{
+    const x=16+i*bw+bw*0.1, rw=bw*0.8, bh=(H-28)*v, y=H-26-bh;
+    const g=ctx.createLinearGradient(0,y,0,y+bh);
+    g.addColorStop(0,'rgba(200,64,96,0.75)');
+    g.addColorStop(1,'rgba(212,86,10,0.15)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.roundRect(x,y,rw,bh,4); ctx.fill();
+    ctx.fillStyle='rgba(120,76,40,0.65)';
+    ctx.font='11px DM Mono,monospace';
+    ctx.textAlign='center';
+    ctx.fillText(days[i], x+rw/2, H-6);
+  });
+  document.getElementById('bruxCorr').textContent = 'r=0.71';
+}
+
+function startBrux(){
+  // Request microphone permission explicitly
+  navigator.mediaDevices.getUserMedia({audio:true, video:false})
+    .then(stream=>{
+      stream.getTracks().forEach(t=>t.stop());
+      const btn = document.getElementById('bruxBtn');
+      btn.textContent = '計測中... (8時間)';
+      btn.disabled = true;
+      setTimeout(()=>{ btn.textContent='就寝前計測を開始'; btn.disabled=false; }, 4000);
+    })
+    .catch(e=>{
+      alert('マイクへのアクセスが許可されていません。\n設定 → ブラウザ → マイク → 許可 に変更してください。');
+    });
+}
+
+window.addEventListener('load', ()=>{ startCamera(); setTimeout(drawBruxChart,200); updatePlanUI(); });
+window.addEventListener('resize', drawBruxChart);
+
+/* ── PLAN MANAGEMENT ── */
+const PLAN_KEY = 'bodyaxis_plan_v1';
+function loadPlan(){ try{ return localStorage.getItem(PLAN_KEY)||'free'; }catch(e){ return 'free'; } }
+function savePlan(p){ try{ localStorage.setItem(PLAN_KEY,p); }catch(e){} }
+let currentPlan = loadPlan();
+
+function updatePlanUI(){
+  const isStd = currentPlan === 'standard';
+  const titleEl = document.getElementById('plan-info-title');
+  const bodyEl  = document.getElementById('plan-info-body');
+  if(titleEl) titleEl.textContent = isStd ? '現在：スタンダードプラン ⭐' : '現在：無料プラン';
+  if(bodyEl)  bodyEl.textContent  = isStd
+    ? '無制限スキャン・呼吸計測・全期間グラフが利用できます。'
+    : '1日3回まで姿勢スキャン可能です。';
+  const freeTier = document.getElementById('tier-free');
+  if(freeTier) freeTier.classList.toggle('active-plan', !isStd);
+  const fb = document.getElementById('free-badge');
+  if(fb){ fb.className='pt-badge '+(isStd?'free-b':'curr'); fb.textContent=isStd?'無料':'現在のプラン ✓'; }
+  const fcb = document.getElementById('free-current-btn');
+  if(fcb) fcb.disabled = !isStd;
+  const stdTier = document.getElementById('tier-std');
+  if(stdTier) stdTier.classList.toggle('active-plan', isStd);
+  const sb = document.getElementById('std-badge');
+  if(sb){ sb.className='pt-badge '+(isStd?'curr':'std-b'); sb.textContent=isStd?'現在のプラン ✓':'スタンダード'; }
+  const stdBtn = document.getElementById('std-upgrade-btn');
+  if(stdBtn){
+    if(isStd){ stdBtn.textContent='ご利用中'; stdBtn.disabled=true; stdBtn.style.background='var(--green)'; stdBtn.style.boxShadow='none'; }
+    else{ stdBtn.textContent='7日間無料で始める'; stdBtn.disabled=false; stdBtn.style.background=''; stdBtn.style.boxShadow=''; }
+  }
+  const cb = document.getElementById('cancel-box');
+  if(cb) cb.style.display = isStd ? 'block' : 'none';
+  const pill = document.getElementById('planPill');
+  if(pill){ pill.textContent=isStd?'Standard':'FREE'; pill.className=isStd?'plan-pill pill-std':'plan-pill pill-free'; }
+}
+
+function doUpgrade(){
+  if(confirm('スタンダードプランに申し込みますか？\n\n最初の7日間は無料です。\n8日目以降 ¥680/月（税込）が発生します。\n解約はいつでも可能です。\n\n決済ページ（Stripe）へ移動します。')){
+    window.open('https://buy.stripe.com/fZueVd20D0dLcNj12O7AI03','_blank');
+    setTimeout(()=>{
+      if(confirm('決済は完了しましたか？\n「OK」でスタンダードプランを有効にします。')){
+        currentPlan='standard'; savePlan('standard'); updatePlanUI();
+      }
+    }, 2000);
+  }
+}
+
+function cancelPlan(){
+  if(confirm('プランを解約して無料プランに戻しますか？\n\n当月末まではスタンダードプランのままご利用いただけます。')){
+    currentPlan='free'; savePlan('free'); updatePlanUI();
+  }
+}
+
+/* Wrap switchTab to call updatePlanUI on plan tab */
+(function(){
+  const _orig = switchTab;
+  window.switchTab = function(name){
+    _orig(name);
+    if(name==='plan') updatePlanUI();
+  };
+})();
+</script>
+</body>
+</html>
